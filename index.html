@@ -1,1788 +1,1183 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>شريخان لايف | Shirakhan Life</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #0a0c10;
-  --bg2: #0f1218;
-  --bg3: #151921;
-  --surface: #1a1f2a;
-  --surface2: #222836;
-  --border: #2a3245;
-  --accent: #4f8ef7;
-  --accent2: #7c4dff;
-  --accent3: #00d4aa;
-  --accent4: #ff6b35;
-  --accent5: #ffd93d;
-  --text: #e8edf5;
-  --text2: #8a95a8;
-  --text3: #4a5568;
-  --green: #00c896;
-  --red: #ff4757;
-  --orange: #ffa502;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 8px 32px rgba(0,0,0,0.4);
-  --shadow-accent: 0 0 40px rgba(79,142,247,0.15);
-  --font-ar: 'Tajawal', sans-serif;
-  --font-en: 'Syne', sans-serif;
-  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+import { useState, useRef, useEffect, useCallback } from "react";
+
+// ══════════════════════════════════════════════════════════
+//  SPEECH  (Arabic + English)
+// ══════════════════════════════════════════════════════════
+let _arV = null, _enV = null;
+function loadVoices() {
+  const vs = window.speechSynthesis.getVoices();
+  _arV = vs.find(v => v.lang.startsWith("ar")) || null;
+  _enV = vs.find(v => v.lang === "en-US") || vs.find(v => v.lang.startsWith("en")) || null;
 }
-[data-lang="en"] { direction: ltr; }
-[data-lang="en"] body { font-family: var(--font-en); }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  font-family: var(--font-ar);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
-  line-height: 1.6;
+if (typeof window !== "undefined") {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
 }
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ── NOISE OVERLAY ── */
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none; opacity: 0.4;
-}
-
-/* ── AMBIENT GLOW ── */
-.ambient {
-  position: fixed; z-index: 0; pointer-events: none; border-radius: 50%;
-  filter: blur(100px); opacity: 0.06; animation: drift 20s infinite alternate ease-in-out;
-}
-.ambient-1 { width: 600px; height: 600px; background: var(--accent); top: -200px; right: -200px; }
-.ambient-2 { width: 500px; height: 500px; background: var(--accent2); bottom: -200px; left: -100px; animation-delay: -10s; }
-.ambient-3 { width: 400px; height: 400px; background: var(--accent3); top: 40%; left: 40%; animation-delay: -5s; }
-@keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,60px) scale(1.1); } }
-
-/* ── LAYOUT ── */
-#app { position: relative; z-index: 1; max-width: 420px; margin: 0 auto; min-height: 100vh; background: var(--bg2); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-@media(min-width:768px) { #app { box-shadow: 0 0 80px rgba(0,0,0,0.6); } }
-
-/* ── SCREENS ── */
-.screen { display: none; flex-direction: column; min-height: 100vh; animation: fadeSlideIn 0.4s ease; }
-.screen.active { display: flex; }
-@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-
-/* ── SPLASH ── */
-#splash {
-  background: radial-gradient(ellipse at 60% 30%, #1a2544 0%, var(--bg) 70%);
-  align-items: center; justify-content: center; flex-direction: column; gap: 24px;
-}
-.splash-logo {
-  width: 100px; height: 100px; border-radius: 28px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 42px; box-shadow: 0 0 60px rgba(79,142,247,0.4);
-  animation: logoPulse 2s ease infinite;
-}
-@keyframes logoPulse { 0%,100% { box-shadow: 0 0 40px rgba(79,142,247,0.3); } 50% { box-shadow: 0 0 80px rgba(79,142,247,0.6); } }
-.splash-title { font-size: 32px; font-weight: 900; text-align: center; }
-.splash-title span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.splash-sub { color: var(--text2); font-size: 15px; }
-.splash-loader { width: 200px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.splash-loader-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; animation: loadBar 2.2s ease forwards; }
-@keyframes loadBar { from { width: 0; } to { width: 100%; } }
-
-/* ── TOPBAR ── */
-.topbar {
-  padding: 16px 20px 12px;
-  background: rgba(10,12,16,0.9); backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
-}
-.topbar-logo { font-size: 20px; font-weight: 800; }
-.topbar-logo span { background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.topbar-actions { display: flex; gap: 8px; }
-.icon-btn {
-  width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface); display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 16px; transition: var(--transition); color: var(--text2);
-}
-.icon-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
-
-/* ── CONTENT AREA ── */
-.content { flex: 1; overflow-y: auto; padding-bottom: 80px; }
-
-/* ── HERO BANNER ── */
-.hero {
-  margin: 16px; border-radius: 20px; padding: 24px;
-  background: linear-gradient(135deg, #1a2a4a 0%, #0f1a35 50%, #1a1235 100%);
-  border: 1px solid rgba(79,142,247,0.2); position: relative; overflow: hidden;
-}
-.hero::before {
-  content: ''; position: absolute; top: -50%; right: -20%;
-  width: 300px; height: 300px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(79,142,247,0.1) 0%, transparent 70%);
-}
-.hero-greeting { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
-.hero-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-.hero-title em { color: var(--accent); font-style: normal; }
-.hero-stats { display: flex; gap: 16px; margin-top: 16px; }
-.hero-stat { text-align: center; }
-.hero-stat-num { font-size: 20px; font-weight: 800; color: var(--accent3); }
-.hero-stat-label { font-size: 11px; color: var(--text2); }
-
-/* ── SEARCH ── */
-.search-wrap { padding: 12px 16px 0; }
-.search-box {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-  padding: 12px 16px; transition: var(--transition);
-}
-.search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
-.search-box span { color: var(--text3); font-size: 18px; }
-.search-box input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: inherit; font-size: 14px; }
-.search-box input::placeholder { color: var(--text3); }
-
-/* ── CATEGORIES GRID ── */
-.section-header { padding: 20px 16px 12px; display: flex; align-items: center; justify-content: space-between; }
-.section-title { font-size: 16px; font-weight: 700; }
-.section-link { font-size: 13px; color: var(--accent); cursor: pointer; }
-.categories-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 16px; }
-.cat-card {
-  border-radius: 16px; padding: 14px 8px; text-align: center; cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface);
-  transition: var(--transition); position: relative; overflow: hidden;
-}
-.cat-card::before {
-  content: ''; position: absolute; inset: 0; opacity: 0;
-  transition: opacity 0.3s; border-radius: 16px;
-}
-.cat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
-.cat-card:hover::before { opacity: 1; }
-.cat-card .icon { font-size: 24px; margin-bottom: 6px; display: block; }
-.cat-card .label { font-size: 11px; color: var(--text2); font-weight: 500; }
-.cat-card.shops { border-color: rgba(79,142,247,0.3); }
-.cat-card.shops::before { background: rgba(79,142,247,0.05); }
-.cat-card.shops .icon { filter: drop-shadow(0 0 8px rgba(79,142,247,0.5)); }
-.cat-card.prices { border-color: rgba(0,200,150,0.3); }
-.cat-card.prices::before { background: rgba(0,200,150,0.05); }
-.cat-card.transport { border-color: rgba(255,107,53,0.3); }
-.cat-card.transport::before { background: rgba(255,107,53,0.05); }
-.cat-card.health { border-color: rgba(255,71,87,0.3); }
-.cat-card.health::before { background: rgba(255,71,87,0.05); }
-.cat-card.sports { border-color: rgba(255,217,61,0.3); }
-.cat-card.sports::before { background: rgba(255,217,61,0.05); }
-.cat-card.education { border-color: rgba(124,77,255,0.3); }
-.cat-card.education::before { background: rgba(124,77,255,0.05); }
-.cat-card.professions { border-color: rgba(255,165,2,0.3); }
-.cat-card.professions::before { background: rgba(255,165,2,0.05); }
-.cat-card.mukhtar { border-color: rgba(0,212,170,0.3); }
-.cat-card.mukhtar::before { background: rgba(0,212,170,0.05); }
-
-/* ── QUICK STATUS STRIP ── */
-.status-strip { padding: 0 16px; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-.status-strip::-webkit-scrollbar { display: none; }
-.status-pill {
-  flex-shrink: 0; padding: 8px 14px; border-radius: 20px;
-  background: var(--surface); border: 1px solid var(--border);
-  font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;
-  transition: var(--transition); white-space: nowrap;
-}
-.status-pill:hover { border-color: var(--accent); }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; }
-.status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.status-dot.red { background: var(--red); }
-.status-dot.orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
-
-/* ── SHOP CARDS ── */
-.cards-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
-.shop-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
-  overflow: hidden; transition: var(--transition); cursor: pointer;
-}
-.shop-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: rgba(79,142,247,0.3); }
-.shop-card-img {
-  width: 100%; height: 140px; object-fit: cover;
-  background: linear-gradient(135deg, var(--surface2), var(--border));
-  display: flex; align-items: center; justify-content: center; font-size: 40px;
-}
-.shop-card-body { padding: 14px; }
-.shop-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.shop-card-name { font-size: 15px; font-weight: 700; }
-.shop-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-.badge-open { background: rgba(0,200,150,0.15); color: var(--green); border: 1px solid rgba(0,200,150,0.3); }
-.badge-closed { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
-.badge-unknown { background: rgba(255,165,2,0.15); color: var(--orange); border: 1px solid rgba(255,165,2,0.3); }
-.shop-card-desc { font-size: 13px; color: var(--text2); margin-bottom: 10px; }
-.shop-card-footer { display: flex; align-items: center; justify-content: space-between; }
-.shop-card-phone { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
-.shop-card-stars { color: var(--accent5); font-size: 12px; }
-
-/* ── PRICE TABLE ── */
-.price-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
-  overflow: hidden; margin: 0 16px 12px;
-}
-.price-card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.price-card-title { font-size: 15px; font-weight: 700; }
-.price-table { width: 100%; }
-.price-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(42,50,69,0.5); transition: background 0.2s; }
-.price-row:last-child { border-bottom: none; }
-.price-row:hover { background: var(--surface2); }
-.price-item { flex: 1; font-size: 14px; }
-.price-val { font-size: 15px; font-weight: 700; color: var(--accent3); }
-.price-val.cheapest { color: var(--green); }
-.price-val.expensive { color: var(--red); }
-.price-avg-badge { padding: 2px 8px; background: rgba(79,142,247,0.15); color: var(--accent); border-radius: 8px; font-size: 11px; margin-inline-start: 6px; }
-
-/* ── TRANSPORT LIST ── */
-.driver-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-  padding: 14px 16px; margin: 0 16px 10px; display: flex; align-items: center; gap: 14px;
-  transition: var(--transition); cursor: pointer;
-}
-.driver-card:hover { border-color: rgba(79,142,247,0.3); transform: translateX(-2px); }
-[data-lang="en"] .driver-card:hover { transform: translateX(2px); }
-.driver-avatar {
-  width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
-}
-.driver-info { flex: 1; }
-.driver-name { font-size: 15px; font-weight: 700; }
-.driver-phone { font-size: 12px; color: var(--text2); margin-top: 2px; }
-.avail-badge { padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
-.avail-badge.avail { background: rgba(0,200,150,0.15); color: var(--green); border: 1px solid rgba(0,200,150,0.3); }
-.avail-badge.busy { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
-
-/* ── NOTIFICATION PANEL ── */
-.notif-item {
-  padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; cursor: pointer;
-  transition: background 0.2s; position: relative;
-}
-.notif-item:hover { background: var(--surface2); }
-.notif-item.unread::after {
-  content: ''; position: absolute; top: 18px; inset-inline-start: 8px;
-  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
-}
-.notif-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-.notif-body { flex: 1; }
-.notif-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-.notif-text { font-size: 12px; color: var(--text2); }
-.notif-time { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-/* ── MUKHTAR CARD ── */
-.mukhtar-card {
-  margin: 16px; border-radius: 20px; overflow: hidden;
-  background: linear-gradient(135deg, #0d2a1a 0%, #0a1f15 100%);
-  border: 1px solid rgba(0,200,150,0.2); padding: 20px;
-}
-.mukhtar-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.mukhtar-avatar {
-  width: 60px; height: 60px; border-radius: 18px;
-  background: linear-gradient(135deg, var(--accent3), #00a88a);
-  display: flex; align-items: center; justify-content: center; font-size: 28px;
-}
-.mukhtar-name { font-size: 18px; font-weight: 800; }
-.mukhtar-title { font-size: 12px; color: var(--accent3); }
-.mukhtar-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.mukhtar-info-item { background: rgba(0,200,150,0.08); border-radius: 12px; padding: 10px 12px; }
-.mukhtar-info-label { font-size: 11px; color: var(--text3); margin-bottom: 2px; }
-.mukhtar-info-val { font-size: 13px; font-weight: 600; }
-.mukhtar-announce {
-  background: rgba(0,200,150,0.1); border: 1px solid rgba(0,200,150,0.2);
-  border-radius: 12px; padding: 12px; font-size: 13px; color: var(--text2);
-}
-.mukhtar-announce strong { color: var(--accent3); display: block; margin-bottom: 4px; font-size: 12px; }
-
-/* ── PROFESSIONAL CARD ── */
-.pro-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-  padding: 14px 16px; margin: 0 16px 10px; display: flex; gap: 12px; align-items: flex-start;
-  transition: var(--transition); cursor: pointer;
-}
-.pro-card:hover { border-color: rgba(255,165,2,0.4); transform: translateY(-2px); }
-.pro-icon { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-.pro-info { flex: 1; }
-.pro-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
-.pro-spec { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
-.pro-stars { color: var(--accent5); font-size: 13px; }
-.pro-phone { font-size: 12px; color: var(--text3); margin-top: 4px; }
-
-/* ── AUTH SCREENS ── */
-.auth-screen { padding: 32px 24px; flex: 1; display: flex; flex-direction: column; }
-.auth-logo { text-align: center; margin-bottom: 32px; }
-.auth-logo-icon {
-  width: 80px; height: 80px; margin: 0 auto 12px; border-radius: 24px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center; font-size: 36px;
-}
-.auth-logo-title { font-size: 24px; font-weight: 800; }
-.auth-logo-title span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.auth-logo-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
-.auth-form-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
-.auth-form-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; }
-.form-group { margin-bottom: 16px; }
-.form-label { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: block; font-weight: 500; }
-.form-input {
-  width: 100%; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 14px 16px; color: var(--text); font-family: inherit; font-size: 15px;
-  outline: none; transition: var(--transition); direction: ltr;
-}
-.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
-.btn {
-  width: 100%; padding: 16px; border-radius: 14px; border: none; cursor: pointer;
-  font-family: inherit; font-size: 16px; font-weight: 700; transition: var(--transition);
-}
-.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,142,247,0.4); }
-.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); margin-top: 10px; }
-.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-.otp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
-.otp-input {
-  text-align: center; font-size: 22px; font-weight: 700; padding: 16px 0;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-  color: var(--text); font-family: inherit; outline: none; transition: var(--transition);
-}
-.otp-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
-.role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
-.role-btn {
-  padding: 16px 12px; border-radius: 14px; border: 2px solid var(--border);
-  background: var(--surface); cursor: pointer; text-align: center; transition: var(--transition);
-}
-.role-btn.selected { border-color: var(--accent); background: rgba(79,142,247,0.1); }
-.role-btn-icon { font-size: 28px; margin-bottom: 8px; display: block; }
-.role-btn-label { font-size: 13px; font-weight: 600; }
-
-/* ── SETTINGS ── */
-.settings-list { padding: 0 16px; }
-.settings-item {
-  display: flex; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);
-  cursor: pointer; transition: var(--transition);
-}
-.settings-item:hover .settings-label { color: var(--accent); }
-.settings-icon { width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-inline-end: 14px; flex-shrink: 0; }
-.settings-label { flex: 1; font-size: 15px; font-weight: 500; }
-.settings-value { font-size: 13px; color: var(--text2); }
-.settings-arrow { color: var(--text3); margin-inline-start: 8px; }
-.toggle {
-  width: 48px; height: 26px; background: var(--border); border-radius: 13px;
-  position: relative; cursor: pointer; transition: background 0.3s;
-}
-.toggle.on { background: var(--accent); }
-.toggle::after {
-  content: ''; position: absolute; top: 3px; inset-inline-start: 3px;
-  width: 20px; height: 20px; border-radius: 50%; background: white; transition: transform 0.3s;
-}
-.toggle.on::after { transform: translateX(22px); }
-[data-lang="en"] .toggle.on::after { transform: translateX(22px); }
-[data-lang="ar"] .toggle.on::after { transform: translateX(-22px); }
-
-/* ── BOTTOM NAV ── */
-.bottom-nav {
-  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 100%; max-width: 420px; background: rgba(10,12,16,0.95);
-  backdrop-filter: blur(20px); border-top: 1px solid var(--border);
-  display: flex; padding: 8px 0 16px; z-index: 200;
-}
-.nav-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  cursor: pointer; transition: var(--transition); padding: 4px 0;
-}
-.nav-item .nav-icon { font-size: 22px; transition: transform 0.3s; }
-.nav-item .nav-label { font-size: 10px; color: var(--text3); font-weight: 500; }
-.nav-item.active .nav-label { color: var(--accent); }
-.nav-item.active .nav-icon { transform: translateY(-2px); filter: drop-shadow(0 0 6px var(--accent)); }
-
-/* ── SHOP OWNER DASHBOARD ── */
-.dashboard-header {
-  background: linear-gradient(135deg, #0f1e38, #0a1228);
-  border-bottom: 1px solid var(--border); padding: 20px 16px;
-}
-.dashboard-welcome { font-size: 13px; color: var(--text2); }
-.dashboard-name { font-size: 22px; font-weight: 800; margin: 2px 0; }
-.dashboard-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 16px; }
-.dash-stat {
-  background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 14px;
-  padding: 12px; text-align: center;
-}
-.dash-stat-val { font-size: 20px; font-weight: 800; color: var(--accent); }
-.dash-stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
-.status-toggle-card {
-  margin: 16px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 18px; padding: 20px;
-}
-.status-toggle-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-.status-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.status-btn {
-  padding: 16px; border-radius: 14px; border: 2px solid transparent; cursor: pointer;
-  font-family: inherit; font-size: 15px; font-weight: 700; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.status-btn.open-btn { background: rgba(0,200,150,0.1); border-color: rgba(0,200,150,0.4); color: var(--green); }
-.status-btn.close-btn { background: rgba(255,71,87,0.1); border-color: rgba(255,71,87,0.4); color: var(--red); }
-.status-btn:hover { transform: scale(1.02); }
-
-/* ── MODAL ── */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-  z-index: 1000; display: flex; align-items: flex-end; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.3s;
-}
-.modal-overlay.open { opacity: 1; pointer-events: all; }
-.modal {
-  width: 100%; max-width: 420px; background: var(--bg3); border-radius: 24px 24px 0 0;
-  border-top: 1px solid var(--border); padding: 24px; max-height: 80vh; overflow-y: auto;
-  transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
-}
-.modal-overlay.open .modal { transform: translateY(0); }
-.modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
-.modal-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
-.modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
-.modal-close { position: absolute; top: 20px; inset-inline-end: 20px; font-size: 20px; cursor: pointer; color: var(--text2); }
-
-/* ── TOAST ── */
-.toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; width: 100%; max-width: 380px; padding: 0 16px; }
-.toast {
-  padding: 14px 18px; border-radius: 14px; font-size: 14px; font-weight: 600;
-  display: flex; align-items: center; gap: 10px;
-  animation: toastIn 0.4s ease, toastOut 0.4s ease 2.6s forwards;
-  box-shadow: var(--shadow);
-}
-.toast.success { background: var(--green); color: #fff; }
-.toast.error { background: var(--red); color: #fff; }
-.toast.info { background: var(--accent); color: #fff; }
-@keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
-
-/* ── CHIP FILTERS ── */
-.filter-chips { padding: 0 16px 12px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-.filter-chips::-webkit-scrollbar { display: none; }
-.chip {
-  flex-shrink: 0; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
-  border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: var(--transition);
-  white-space: nowrap;
-}
-.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-/* ── EMPTY STATE ── */
-.empty-state { text-align: center; padding: 48px 24px; }
-.empty-state .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.5; }
-.empty-state .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-.empty-state .empty-sub { font-size: 14px; color: var(--text2); }
-
-/* ── ANIMATIONS ── */
-.stagger > * { animation: staggerIn 0.4s ease both; }
-.stagger > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger > *:nth-child(4) { animation-delay: 0.2s; }
-.stagger > *:nth-child(5) { animation-delay: 0.25s; }
-.stagger > *:nth-child(6) { animation-delay: 0.3s; }
-.stagger > *:nth-child(7) { animation-delay: 0.35s; }
-.stagger > *:nth-child(8) { animation-delay: 0.4s; }
-@keyframes staggerIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-/* ── BACK BTN ── */
-.back-btn { display: flex; align-items: center; gap: 8px; color: var(--text2); font-size: 14px; cursor: pointer; padding: 4px 0; margin-bottom: 16px; }
-.back-btn:hover { color: var(--accent); }
-
-/* ── SECTION PAGE HEADER ── */
-.page-header { padding: 16px 16px 0; }
-
-/* ── PULSE ANIM ── */
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-.pulse { animation: pulse 2s infinite; }
-
-/* ── FLOATING ACTION BTN ── */
-.fab {
-  position: fixed; bottom: 88px; inset-inline-end: calc(50% - 210px + 16px);
-  width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center; font-size: 22px;
-  box-shadow: 0 8px 24px rgba(79,142,247,0.4); cursor: pointer; z-index: 150;
-  transition: var(--transition); display: none;
-}
-.fab.visible { display: flex; }
-.fab:hover { transform: scale(1.1) rotate(-5deg); }
-
-@media(max-width:420px) { .fab { inset-inline-end: 16px; } }
-
-/* ─ GAS SPECIAL ─ */
-.gas-banner {
-  margin: 0 16px 16px; border-radius: 18px; padding: 16px 18px;
-  background: linear-gradient(135deg, #1a2a0a 0%, #0f1a06 100%);
-  border: 1px solid rgba(0,200,150,0.25); display: flex; align-items: center; gap: 12px;
-}
-.gas-icon { font-size: 36px; }
-.gas-text { flex: 1; }
-.gas-title { font-size: 14px; font-weight: 700; color: var(--accent3); }
-.gas-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
-.gas-time { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-/* ─ EDUCATION ─ */
-.edu-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-  padding: 16px; margin: 0 16px 10px; display: flex; align-items: center; gap: 12px;
-  transition: var(--transition); cursor: pointer;
-}
-.edu-card:hover { border-color: rgba(124,77,255,0.4); transform: translateY(-2px); }
-.edu-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-.edu-info .edu-name { font-size: 15px; font-weight: 700; }
-.edu-info .edu-type { font-size: 12px; color: var(--text2); }
-.edu-info .edu-hours { font-size: 12px; color: var(--text3); margin-top: 4px; }
-
-/* ─ SPORTS ─ */
-.field-card {
-  background: var(--surface); border: 1px solid rgba(255,217,61,0.2); border-radius: 18px;
-  margin: 0 16px 12px; overflow: hidden; cursor: pointer; transition: var(--transition);
-}
-.field-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,217,61,0.1); }
-.field-img { height: 80px; background: linear-gradient(135deg, #0a2010, #0f3020); display: flex; align-items: center; justify-content: center; font-size: 40px; position: relative; }
-.field-img::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(0,200,0,0.05) 0, rgba(0,200,0,0.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(0deg, rgba(0,200,0,0.05) 0, rgba(0,200,0,0.05) 1px, transparent 1px, transparent 30px); }
-.field-body { padding: 14px; }
-.field-name { font-size: 15px; font-weight: 700; }
-.field-details { display: flex; gap: 12px; margin-top: 8px; }
-.field-detail { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
-
-/* ─ PRODUCT LIST ─ */
-.product-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.2s;
-}
-.product-item:hover { background: var(--surface2); }
-.product-name { font-size: 14px; font-weight: 600; }
-.product-unit { font-size: 11px; color: var(--text3); }
-.product-price { font-size: 15px; font-weight: 800; color: var(--accent3); }
-.product-currency { font-size: 11px; color: var(--text3); }
-</style>
-</head>
-<body>
-<div class="ambient ambient-1"></div>
-<div class="ambient ambient-2"></div>
-<div class="ambient ambient-3"></div>
-<div class="toast-container" id="toastContainer"></div>
-
-<div id="app">
-  <!-- ══ SPLASH ══ -->
-  <div class="screen active" id="screen-splash">
-    <div id="splash" style="display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:radial-gradient(ellipse at 60% 30%, #1a2544 0%, #0a0c10 70%);min-height:100vh;">
-      <div class="splash-logo">🏡</div>
-      <div>
-        <div class="splash-title"><span id="splashNameAr">شريخان لايف</span></div>
-        <div class="splash-sub" style="text-align:center" id="splashSub">خدمات مجتمعك في مكان واحد</div>
-      </div>
-      <div class="splash-loader"><div class="splash-loader-bar"></div></div>
-    </div>
-  </div>
-
-  <!-- ══ AUTH: PHONE ══ -->
-  <div class="screen" id="screen-auth-phone">
-    <div class="auth-screen">
-      <div class="auth-logo">
-        <div class="auth-logo-icon">🏡</div>
-        <div class="auth-logo-title"><span id="authBrandName">شريخان لايف</span></div>
-        <div class="auth-logo-sub" id="authBrandSub">مرحباً بك في مجتمعك الرقمي</div>
-      </div>
-      <div class="auth-form-title" id="authPhoneTitle">تسجيل الدخول</div>
-      <div class="auth-form-sub" id="authPhoneSub">أدخل رقم هاتفك للمتابعة</div>
-      <div class="form-group">
-        <label class="form-label" id="labelPhone">رقم الهاتف</label>
-        <input class="form-input" type="tel" placeholder="+964 7XX XXX XXXX" id="phoneInput" style="text-align:left;direction:ltr;">
-      </div>
-      <div class="form-group">
-        <label class="form-label" id="labelRole">نوع الحساب</label>
-        <div class="role-selector">
-          <div class="role-btn selected" onclick="selectRole(this,'user')">
-            <span class="role-btn-icon">👤</span>
-            <div class="role-btn-label" id="roleUser">مستخدم عادي</div>
-          </div>
-          <div class="role-btn" onclick="selectRole(this,'owner')">
-            <span class="role-btn-icon">🏪</span>
-            <div class="role-btn-label" id="roleOwner">صاحب محل</div>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="goToOTP()" id="btnSendOTP">إرسال رمز التحقق</button>
-      <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--text3);" id="authDisclaimer">بالمتابعة توافق على شروط الاستخدام</div>
-    </div>
-  </div>
-
-  <!-- ══ AUTH: OTP ══ -->
-  <div class="screen" id="screen-auth-otp">
-    <div class="auth-screen">
-      <div class="auth-logo">
-        <div class="auth-logo-icon" style="background:linear-gradient(135deg,var(--accent3),#00a88a)">🔐</div>
-      </div>
-      <div class="auth-form-title" id="otpTitle">رمز التحقق</div>
-      <div class="auth-form-sub" id="otpSub">تم إرسال رمز من 4 أرقام إلى هاتفك</div>
-      <div class="otp-grid">
-        <input class="otp-input" maxlength="1" type="number" oninput="otpNext(this,1)">
-        <input class="otp-input" maxlength="1" type="number" oninput="otpNext(this,2)">
-        <input class="otp-input" maxlength="1" type="number" oninput="otpNext(this,3)">
-        <input class="otp-input" maxlength="1" type="number" oninput="otpNext(this,4)">
-      </div>
-      <button class="btn btn-primary" onclick="verifyOTP()" id="btnVerify">تحقق والدخول</button>
-      <button class="btn btn-outline" onclick="goScreen('auth-phone')" id="btnBackPhone">رجوع</button>
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--text3);" id="otpDemo">للعرض: أدخل أي 4 أرقام</div>
-    </div>
-  </div>
-
-  <!-- ══ HOME ══ -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="topbar-logo" id="topbarLogo">🏡 <span>شريخان</span></div>
-      <div class="topbar-actions">
-        <div class="icon-btn" onclick="goScreen('notifications')" title="الإشعارات">🔔</div>
-        <div class="icon-btn" onclick="goScreen('settings')" title="الإعدادات">⚙️</div>
-      </div>
-    </div>
-    <div class="content">
-      <!-- Hero -->
-      <div class="hero stagger">
-        <div class="hero-greeting" id="heroGreeting">صباح الخير، شريخان 👋</div>
-        <div class="hero-title" id="heroTitle">اكتشف خدمات <em id="heroTitleEm">مجتمعك</em></div>
-        <div class="hero-stats">
-          <div class="hero-stat"><div class="hero-stat-num">24</div><div class="hero-stat-label" id="statShops">محل</div></div>
-          <div class="hero-stat"><div class="hero-stat-num">8</div><div class="hero-stat-label" id="statDrivers">سائق</div></div>
-          <div class="hero-stat"><div class="hero-stat-num">5</div><div class="hero-stat-label" id="statServices">خدمة</div></div>
-        </div>
-      </div>
-      <!-- Gas Banner -->
-      <div class="gas-banner stagger">
-        <div class="gas-icon">⛽</div>
-        <div class="gas-text">
-          <div class="gas-title" id="gasTitle">الغاز متوفر الآن!</div>
-          <div class="gas-sub" id="gasSub">موزع الغاز - أبو علي</div>
-          <div class="gas-time">منذ 15 دقيقة</div>
-        </div>
-        <div style="font-size:22px;cursor:pointer;" onclick="showToast('📞 جاري الاتصال...','info')">📞</div>
-      </div>
-      <!-- Search -->
-      <div class="search-wrap">
-        <div class="search-box">
-          <span>🔍</span>
-          <input type="text" id="searchInput" placeholder="ابحث عن محل، خدمة، شخص..." oninput="liveSearch(this.value)">
-        </div>
-      </div>
-      <!-- Categories -->
-      <div class="section-header">
-        <div class="section-title" id="catTitle">الأقسام</div>
-      </div>
-      <div class="categories-grid stagger" id="catGrid">
-        <div class="cat-card shops" onclick="goScreen('shops')">
-          <span class="icon">🏪</span>
-          <div class="label" id="catShops">المحلات</div>
-        </div>
-        <div class="cat-card prices" onclick="goScreen('prices')">
-          <span class="icon">💰</span>
-          <div class="label" id="catPrices">الأسعار</div>
-        </div>
-        <div class="cat-card transport" onclick="goScreen('transport')">
-          <span class="icon">🚐</span>
-          <div class="label" id="catTransport">النقل</div>
-        </div>
-        <div class="cat-card health" onclick="goScreen('health')">
-          <span class="icon">🏥</span>
-          <div class="label" id="catHealth">الصحة</div>
-        </div>
-        <div class="cat-card sports" onclick="goScreen('sports')">
-          <span class="icon">⚽</span>
-          <div class="label" id="catSports">الرياضة</div>
-        </div>
-        <div class="cat-card education" onclick="goScreen('education')">
-          <span class="icon">🎓</span>
-          <div class="label" id="catEducation">التعليم</div>
-        </div>
-        <div class="cat-card professions" onclick="goScreen('professions')">
-          <span class="icon">🔧</span>
-          <div class="label" id="catProfessions">المهن</div>
-        </div>
-        <div class="cat-card mukhtar" onclick="goScreen('mukhtar')">
-          <span class="icon">👳</span>
-          <div class="label" id="catMukhtar">المختار</div>
-        </div>
-      </div>
-      <!-- Open Now -->
-      <div class="section-header" style="margin-top:8px;">
-        <div class="section-title" id="openNowTitle">مفتوح الآن</div>
-        <div class="section-link" onclick="goScreen('shops')"><span id="seeAll">عرض الكل</span></div>
-      </div>
-      <div class="status-strip stagger">
-        <div class="status-pill" onclick="goScreen('shops')">
-          <div class="status-dot green"></div><span>بقالة أبو كرار</span>
-        </div>
-        <div class="status-pill" onclick="goScreen('shops')">
-          <div class="status-dot green"></div><span>صيدلية الرحمة</span>
-        </div>
-        <div class="status-pill" onclick="goScreen('shops')">
-          <div class="status-dot orange pulse"></div><span>كهرباء الأستاذ حسين</span>
-        </div>
-        <div class="status-pill" onclick="goScreen('shops')">
-          <div class="status-dot red"></div><span>ملعب النجوم</span>
-        </div>
-        <div class="status-pill" onclick="goScreen('shops')">
-          <div class="status-dot green"></div><span>لحم أبو فاضل</span>
-        </div>
-      </div>
-      <!-- Recent Notifs -->
-      <div class="section-header" style="margin-top:8px;">
-        <div class="section-title" id="recentNotifTitle">آخر الإشعارات</div>
-        <div class="section-link" onclick="goScreen('notifications')"><span id="seeAllNotif">عرض الكل</span></div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;margin:0 16px;overflow:hidden;" class="stagger">
-        <div class="notif-item unread" onclick="goScreen('notifications')">
-          <div class="notif-icon" style="background:rgba(0,200,150,0.1)">⛽</div>
-          <div class="notif-body">
-            <div class="notif-title" id="notif1Title">الغاز متوفر الآن</div>
-            <div class="notif-text" id="notif1Text">أبو علي موزع الغاز</div>
-            <div class="notif-time">منذ 15 دقيقة</div>
-          </div>
-        </div>
-        <div class="notif-item" onclick="goScreen('notifications')">
-          <div class="notif-icon" style="background:rgba(79,142,247,0.1)">🏪</div>
-          <div class="notif-body">
-            <div class="notif-title" id="notif2Title">بقالة أبو كرار فتحت</div>
-            <div class="notif-text" id="notif2Text">المحل الآن مفتوح للزبائن</div>
-            <div class="notif-time">منذ ساعة</div>
-          </div>
-        </div>
-      </div>
-      <div style="height:16px;"></div>
-    </div>
-    <nav class="bottom-nav" id="homeNav">
-      <div class="nav-item active" onclick="goScreen('home')"><div class="nav-icon">🏠</div><div class="nav-label" id="navHome">الرئيسية</div></div>
-      <div class="nav-item" onclick="goScreen('shops')"><div class="nav-icon">🏪</div><div class="nav-label" id="navShops">المحلات</div></div>
-      <div class="nav-item" onclick="goScreen('notifications')"><div class="nav-icon">🔔</div><div class="nav-label" id="navNotifs">الإشعارات</div></div>
-      <div class="nav-item" onclick="goScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label" id="navSettings">الإعدادات</div></div>
-    </nav>
-  </div>
-
-  <!-- ══ SHOPS ══ -->
-  <div class="screen" id="screen-shops">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span id="backArrowShops">←</span>
-        <span class="section-title" id="shopsPageTitle">المحلات</span>
-      </div>
-      <div class="topbar-actions">
-        <div class="icon-btn">🔍</div>
-      </div>
-    </div>
-    <div class="content">
-      <div class="filter-chips" style="padding-top:12px;">
-        <div class="chip active" onclick="filterShop(this,'all')" id="filterAll">الكل</div>
-        <div class="chip" onclick="filterShop(this,'open')" id="filterOpen">مفتوح 🟢</div>
-        <div class="chip" onclick="filterShop(this,'closed')" id="filterClosed">مغلق 🔴</div>
-        <div class="chip" onclick="filterShop(this,'grocery')" id="filterGrocery">بقالة</div>
-        <div class="chip" onclick="filterShop(this,'meat')" id="filterMeat">لحوم</div>
-        <div class="chip" onclick="filterShop(this,'pharmacy')" id="filterPharmacy">صيدلية</div>
-      </div>
-      <div class="cards-list stagger" id="shopsList">
-        <!-- dynamically filled -->
-      </div>
-    </div>
-    <nav class="bottom-nav">
-      <div class="nav-item" onclick="goScreen('home')"><div class="nav-icon">🏠</div><div class="nav-label" id="navHome2">الرئيسية</div></div>
-      <div class="nav-item active" onclick="goScreen('shops')"><div class="nav-icon">🏪</div><div class="nav-label">المحلات</div></div>
-      <div class="nav-item" onclick="goScreen('notifications')"><div class="nav-icon">🔔</div><div class="nav-label">الإشعارات</div></div>
-      <div class="nav-item" onclick="goScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">الإعدادات</div></div>
-    </nav>
-  </div>
-
-  <!-- ══ SHOP DETAIL ══ -->
-  <div class="screen" id="screen-shop-detail">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span id="backArrowShopDetail">←</span>
-        <span class="section-title" id="shopDetailName">اسم المحل</span>
-      </div>
-      <div class="icon-btn" onclick="showToast('تم الإبلاغ عن المحل','info')">⚑</div>
-    </div>
-    <div class="content" id="shopDetailContent"></div>
-  </div>
-
-  <!-- ══ PRICES ══ -->
-  <div class="screen" id="screen-prices">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span id="backArrowPrices">←</span>
-        <span class="section-title" id="pricesPageTitle">الأسعار</span>
-      </div>
-    </div>
-    <div class="content">
-      <div style="padding:12px 16px 0;">
-        <div style="background:rgba(0,200,150,0.08);border:1px solid rgba(0,200,150,0.2);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
-          <div style="font-size:12px;color:var(--accent3);font-weight:700;margin-bottom:4px;" id="avgPriceLabel">متوسط الأسعار اليوم</div>
-          <div style="font-size:13px;color:var(--text2);" id="avgPriceNote">مقارنة أسعار المحلات المختلفة</div>
-        </div>
-      </div>
-      <div class="price-card" style="margin-bottom:12px;">
-        <div class="price-card-header">
-          <div class="price-card-title" id="priceTitleEggs">البيض 🥚</div>
-          <div style="font-size:12px;color:var(--text2);" id="priceUnitDoz">للدرزن</div>
-        </div>
-        <div class="price-table">
-          <div class="price-row"><span class="price-item">بقالة أبو كرار</span><span class="price-val cheapest">2,750 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row"><span class="price-item">سوبرماركت الأمل</span><span class="price-val">3,000 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row"><span class="price-item">بقالة الصادق</span><span class="price-val expensive">3,250 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row" style="background:rgba(79,142,247,0.04);">
-            <span class="price-item" style="font-weight:700;" id="avgLabel">المتوسط</span>
-            <span>3,000 <span class="price-avg-badge" id="avgBadge">متوسط</span></span>
-          </div>
-        </div>
-      </div>
-      <div class="price-card" style="margin-bottom:12px;">
-        <div class="price-card-header">
-          <div class="price-card-title" id="priceTitleMeat">اللحم 🥩</div>
-          <div style="font-size:12px;color:var(--text2);" id="priceUnitKg">للكيلو</div>
-        </div>
-        <div class="price-table">
-          <div class="price-row"><span class="price-item">لحم أبو فاضل</span><span class="price-val cheapest">18,000 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row"><span class="price-item">جزارة الأمين</span><span class="price-val">19,500 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row"><span class="price-item">لحوم المدينة</span><span class="price-val expensive">21,000 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row" style="background:rgba(79,142,247,0.04);">
-            <span class="price-item" style="font-weight:700;" id="avgLabel2">المتوسط</span>
-            <span>19,500 <span class="price-avg-badge">متوسط</span></span>
-          </div>
-        </div>
-      </div>
-      <div class="price-card">
-        <div class="price-card-header">
-          <div class="price-card-title" id="priceTitleGas">الغاز ⛽</div>
-          <div style="font-size:12px;color:var(--text2);" id="priceUnitCyl">للأسطوانة</div>
-        </div>
-        <div class="price-table">
-          <div class="price-row"><span class="price-item">أبو علي الغاز</span><span class="price-val cheapest">5,000 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row"><span class="price-item">موزع الحي</span><span class="price-val expensive">6,000 <span class="price-currency">د.ع</span></span></div>
-          <div class="price-row" style="background:rgba(79,142,247,0.04);">
-            <span class="price-item" style="font-weight:700;">المتوسط</span>
-            <span>5,500 <span class="price-avg-badge">متوسط</span></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ TRANSPORT ══ -->
-  <div class="screen" id="screen-transport">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="transportPageTitle">النقل والمواصلات</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="driver-card stagger" onclick="showToast('📞 جاري الاتصال بالسائق...','info')">
-        <div class="driver-avatar">🚐</div>
-        <div class="driver-info"><div class="driver-name" id="d1Name">أبو علاء - تاكسي</div><div class="driver-phone">07811234567</div></div>
-        <div class="avail-badge avail" id="availBadge">متاح</div>
-      </div>
-      <div class="driver-card stagger" onclick="showToast('📞 جاري الاتصال...','info')">
-        <div class="driver-avatar">🚗</div>
-        <div class="driver-info"><div class="driver-name" id="d2Name">حسن - سيارة خاصة</div><div class="driver-phone">07722345678</div></div>
-        <div class="avail-badge busy" id="busyBadge">مشغول</div>
-      </div>
-      <div class="driver-card stagger" onclick="showToast('📞 جاري الاتصال...','info')">
-        <div class="driver-avatar">🚐</div>
-        <div class="driver-info"><div class="driver-name">كريم - فان</div><div class="driver-phone">07933456789</div></div>
-        <div class="avail-badge avail">متاح</div>
-      </div>
-      <div class="driver-card stagger" onclick="showToast('📞 جاري الاتصال...','info')">
-        <div class="driver-avatar">🏍️</div>
-        <div class="driver-info"><div class="driver-name">أحمد - دراجة</div><div class="driver-phone">07844567890</div></div>
-        <div class="avail-badge avail">متاح</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ HEALTH ══ -->
-  <div class="screen" id="screen-health">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="healthPageTitle">الصحة</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="section-header"><div class="section-title" id="pharmaciesTitle">الصيدليات</div></div>
-      <div class="shop-card stagger" style="margin:0 16px 12px;" onclick="showToast('📞 صيدلية الرحمة: 07800000001','info')">
-        <div class="shop-card-img">💊</div>
-        <div class="shop-card-body">
-          <div class="shop-card-top">
-            <div class="shop-card-name">صيدلية الرحمة</div>
-            <div class="shop-badge badge-open">🟢 مفتوح</div>
-          </div>
-          <div class="shop-card-desc">أدوية، مستلزمات طبية، قياس ضغط مجاني</div>
-          <div class="shop-card-footer"><div class="shop-card-phone">📞 07800000001</div><div class="shop-card-stars">⭐⭐⭐⭐⭐</div></div>
-        </div>
-      </div>
-      <div class="section-header"><div class="section-title" id="clinicsTitle">العيادات</div></div>
-      <div class="shop-card stagger" style="margin:0 16px 12px;" onclick="showToast('📞 عيادة الدكتور حسن: 07800000002','info')">
-        <div class="shop-card-img" style="font-size:48px;">🩺</div>
-        <div class="shop-card-body">
-          <div class="shop-card-top">
-            <div class="shop-card-name">عيادة د. حسن - عام</div>
-            <div class="shop-badge badge-open">🟢 مفتوح</div>
-          </div>
-          <div class="shop-card-desc">طب عام، الدوام من 9 ص إلى 3 م</div>
-          <div class="shop-card-footer"><div class="shop-card-phone">📞 07800000002</div><div class="shop-card-stars">⭐⭐⭐⭐</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ SPORTS ══ -->
-  <div class="screen" id="screen-sports">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="sportsPageTitle">الرياضة</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="field-card stagger" onclick="showToast('📞 الحجز: 07900000001','info')">
-        <div class="field-img">⚽</div>
-        <div class="field-body">
-          <div class="field-name">ملعب النجوم - ملعب خماسي</div>
-          <div class="field-details">
-            <div class="field-detail">🕐 6م - 12م</div>
-            <div class="field-detail">💰 15,000 / ساعة</div>
-            <div class="field-detail" style="color:var(--red);">🔴 محجوز</div>
-          </div>
-        </div>
-      </div>
-      <div class="field-card stagger" onclick="showToast('📞 الحجز: 07900000002','info')">
-        <div class="field-img">🏆</div>
-        <div class="field-body">
-          <div class="field-name">ملعب الفتح - ملعب سباعي</div>
-          <div class="field-details">
-            <div class="field-detail">🕐 5م - 11م</div>
-            <div class="field-detail">💰 20,000 / ساعة</div>
-            <div class="field-detail" style="color:var(--green);">🟢 متاح</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ EDUCATION ══ -->
-  <div class="screen" id="screen-education">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="educationPageTitle">التعليم</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="section-header"><div class="section-title" id="schoolsTitle">المدارس</div></div>
-      <div class="edu-card stagger">
-        <div class="edu-icon" style="background:rgba(124,77,255,0.1)">🏫</div>
-        <div class="edu-info">
-          <div class="edu-name">متوسطة شريخان</div>
-          <div class="edu-type">مدرسة متوسطة حكومية</div>
-          <div class="edu-hours">🕐 7:30 ص - 12:30 م</div>
-        </div>
-        <div class="shop-badge badge-open">🟢 مفتوح</div>
-      </div>
-      <div class="section-header"><div class="section-title" id="teachersTitle">مدرسون خصوصيون</div></div>
-      <div class="edu-card stagger" onclick="showToast('📞 أستاذ محمد: 07700000001','info')">
-        <div class="edu-icon" style="background:rgba(79,142,247,0.1)">👨‍🏫</div>
-        <div class="edu-info">
-          <div class="edu-name">أستاذ محمد - رياضيات</div>
-          <div class="edu-type">تأسيس وتقوية</div>
-          <div class="edu-hours">📞 07700000001</div>
-        </div>
-        <div style="font-size:12px;color:var(--accent5)">⭐ 4.9</div>
-      </div>
-      <div class="edu-card stagger" onclick="showToast('📞 أستاذة سارة: 07700000002','info')">
-        <div class="edu-icon" style="background:rgba(0,200,150,0.1)">👩‍🏫</div>
-        <div class="edu-info">
-          <div class="edu-name">أستاذة سارة - إنجليزي</div>
-          <div class="edu-type">لجميع المراحل</div>
-          <div class="edu-hours">📞 07700000002</div>
-        </div>
-        <div style="font-size:12px;color:var(--accent5)">⭐ 4.7</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ PROFESSIONS ══ -->
-  <div class="screen" id="screen-professions">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="professionsPageTitle">المهن والخدمات</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="pro-card stagger" onclick="showToast('📞 الاتصال بالكهربائي','info')">
-        <div class="pro-icon" style="background:rgba(255,217,61,0.1)">⚡</div>
-        <div class="pro-info">
-          <div class="pro-name">أبو سامر - كهربائي</div>
-          <div class="pro-spec">كهرباء منزلية وصناعية</div>
-          <div class="pro-stars">⭐⭐⭐⭐⭐</div>
-          <div class="pro-phone">📞 07811111111</div>
-        </div>
-        <div class="avail-badge avail">متاح</div>
-      </div>
-      <div class="pro-card stagger" onclick="showToast('📞 الاتصال بالسباك','info')">
-        <div class="pro-icon" style="background:rgba(79,142,247,0.1)">🔧</div>
-        <div class="pro-info">
-          <div class="pro-name">محمود - سباك</div>
-          <div class="pro-spec">سباكة وتدفئة</div>
-          <div class="pro-stars">⭐⭐⭐⭐</div>
-          <div class="pro-phone">📞 07822222222</div>
-        </div>
-        <div class="avail-badge avail">متاح</div>
-      </div>
-      <div class="pro-card stagger" onclick="showToast('📞 الاتصال بالحداد','info')">
-        <div class="pro-icon" style="background:rgba(255,107,53,0.1)">🔨</div>
-        <div class="pro-info">
-          <div class="pro-name">خالد - حداد ونجار</div>
-          <div class="pro-spec">أعمال حديد وخشب</div>
-          <div class="pro-stars">⭐⭐⭐⭐</div>
-          <div class="pro-phone">📞 07833333333</div>
-        </div>
-        <div class="avail-badge busy">مشغول</div>
-      </div>
-      <div class="pro-card stagger" onclick="showToast('📞 الاتصال بدهان','info')">
-        <div class="pro-icon" style="background:rgba(0,200,150,0.1)">🎨</div>
-        <div class="pro-info">
-          <div class="pro-name">وليد - دهانات</div>
-          <div class="pro-spec">داخلي وخارجي</div>
-          <div class="pro-stars">⭐⭐⭐⭐⭐</div>
-          <div class="pro-phone">📞 07844444444</div>
-        </div>
-        <div class="avail-badge avail">متاح</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MUKHTAR ══ -->
-  <div class="screen" id="screen-mukhtar">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="mukhtarPageTitle">المختار</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:12px;">
-      <div class="mukhtar-card stagger">
-        <div class="mukhtar-header">
-          <div class="mukhtar-avatar">👳</div>
-          <div>
-            <div class="mukhtar-name" id="mukhtarName">الحاج كريم الأمين</div>
-            <div class="mukhtar-title" id="mukhtarRole">مختار محلة شريخان</div>
-          </div>
-        </div>
-        <div class="mukhtar-info">
-          <div class="mukhtar-info-item">
-            <div class="mukhtar-info-label" id="mukhtarStatus">الحالة</div>
-            <div class="mukhtar-info-val" style="color:var(--green)">✅ موجود</div>
-          </div>
-          <div class="mukhtar-info-item">
-            <div class="mukhtar-info-label" id="mukhtarHoursLabel">ساعات العمل</div>
-            <div class="mukhtar-info-val">9 ص - 12 م</div>
-          </div>
-          <div class="mukhtar-info-item">
-            <div class="mukhtar-info-label" id="mukhtarGreenCard">يوم البطاقة الخضراء</div>
-            <div class="mukhtar-info-val" style="color:var(--accent5)">الأحد</div>
-          </div>
-          <div class="mukhtar-info-item">
-            <div class="mukhtar-info-label">الهاتف</div>
-            <div class="mukhtar-info-val">07800000000</div>
-          </div>
-        </div>
-        <div class="mukhtar-announce">
-          <strong id="announcementLabel">📢 إعلان:</strong>
-          <span id="mukhtarAnnounce">غداً الاثنين تعطيل في مكاتب المختار بمناسبة العطلة الرسمية</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ NOTIFICATIONS ══ -->
-  <div class="screen" id="screen-notifications">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="notifsPageTitle">الإشعارات</span>
-      </div>
-      <div class="icon-btn" onclick="markAllRead();showToast('تم قراءة جميع الإشعارات','success')">✓</div>
-    </div>
-    <div class="content" id="notifsContent">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:0;overflow:hidden;">
-        <div class="notif-item unread">
-          <div class="notif-icon" style="background:rgba(0,200,150,0.1)">⛽</div>
-          <div class="notif-body">
-            <div class="notif-title">الغاز متوفر الآن</div>
-            <div class="notif-text">أبو علي موزع الغاز - للطلب اتصل على 07800000010</div>
-            <div class="notif-time">منذ 15 دقيقة</div>
-          </div>
-        </div>
-        <div class="notif-item unread">
-          <div class="notif-icon" style="background:rgba(79,142,247,0.1)">🏪</div>
-          <div class="notif-body">
-            <div class="notif-title">بقالة أبو كرار فتحت</div>
-            <div class="notif-text">المحل الآن مفتوح للزبائن</div>
-            <div class="notif-time">منذ ساعة</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:rgba(255,217,61,0.1)">📢</div>
-          <div class="notif-body">
-            <div class="notif-title">إعلان المختار</div>
-            <div class="notif-text">تعطيل في مكاتب المختار غداً الاثنين</div>
-            <div class="notif-time">منذ 3 ساعات</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:rgba(255,107,53,0.1)">💰</div>
-          <div class="notif-body">
-            <div class="notif-title">تخفيض أسعار اللحم</div>
-            <div class="notif-text">لحم أبو فاضل - اليوم فقط 16,000 للكيلو</div>
-            <div class="notif-time">منذ 5 ساعات</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:rgba(0,200,150,0.1)">🏥</div>
-          <div class="notif-body">
-            <div class="notif-title">عيادة د. حسن مفتوحة</div>
-            <div class="notif-text">استقبال مرضى حتى الساعة 3 م</div>
-            <div class="notif-time">أمس</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <nav class="bottom-nav">
-      <div class="nav-item" onclick="goScreen('home')"><div class="nav-icon">🏠</div><div class="nav-label">الرئيسية</div></div>
-      <div class="nav-item" onclick="goScreen('shops')"><div class="nav-icon">🏪</div><div class="nav-label">المحلات</div></div>
-      <div class="nav-item active"><div class="nav-icon">🔔</div><div class="nav-label">الإشعارات</div></div>
-      <div class="nav-item" onclick="goScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">الإعدادات</div></div>
-    </nav>
-  </div>
-
-  <!-- ══ SETTINGS ══ -->
-  <div class="screen" id="screen-settings">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="settingsPageTitle">الإعدادات</span>
-      </div>
-    </div>
-    <div class="content" style="padding-top:8px;">
-      <div style="padding:0 16px 16px;">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-          <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:26px;">👤</div>
-          <div>
-            <div style="font-size:16px;font-weight:700;" id="settingsUserName">أبو محمد</div>
-            <div style="font-size:13px;color:var(--text2);">+964 781 123 4567</div>
-            <div style="font-size:12px;color:var(--accent);margin-top:2px;" id="settingsUserType">مستخدم عادي</div>
-          </div>
-        </div>
-        <div class="settings-list">
-          <!-- Language -->
-          <div class="settings-item" onclick="toggleLanguage()">
-            <div class="settings-icon" style="background:rgba(79,142,247,0.1)">🌍</div>
-            <div class="settings-label" id="settingsLang">اللغة</div>
-            <div class="settings-value" id="settingsLangVal">العربية</div>
-            <div class="settings-arrow">›</div>
-          </div>
-          <!-- Notifications -->
-          <div class="settings-item" onclick="toggleNotifSetting()">
-            <div class="settings-icon" style="background:rgba(0,200,150,0.1)">🔔</div>
-            <div class="settings-label" id="settingsNotif">الإشعارات</div>
-            <div class="toggle on" id="notifToggle"></div>
-          </div>
-          <!-- Shop Owner Upgrade -->
-          <div class="settings-item" onclick="openUpgradeModal()">
-            <div class="settings-icon" style="background:rgba(255,217,61,0.1)">🏪</div>
-            <div class="settings-label" id="settingsUpgrade">ترقية لحساب تاجر</div>
-            <div class="settings-value" style="color:var(--accent5)">1,000 د.ع</div>
-            <div class="settings-arrow">›</div>
-          </div>
-          <!-- Dashboard (if owner) -->
-          <div class="settings-item" onclick="goScreen('dashboard')">
-            <div class="settings-icon" style="background:rgba(255,107,53,0.1)">📊</div>
-            <div class="settings-label" id="settingsDashboard">لوحة التاجر</div>
-            <div class="settings-arrow">›</div>
-          </div>
-          <!-- About -->
-          <div class="settings-item">
-            <div class="settings-icon" style="background:rgba(124,77,255,0.1)">ℹ️</div>
-            <div class="settings-label" id="settingsAbout">عن التطبيق</div>
-            <div class="settings-value">v1.0.0</div>
-            <div class="settings-arrow">›</div>
-          </div>
-          <!-- Logout -->
-          <div class="settings-item" onclick="logout()">
-            <div class="settings-icon" style="background:rgba(255,71,87,0.1)">🚪</div>
-            <div class="settings-label" style="color:var(--red)" id="settingsLogout">تسجيل الخروج</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <nav class="bottom-nav">
-      <div class="nav-item" onclick="goScreen('home')"><div class="nav-icon">🏠</div><div class="nav-label">الرئيسية</div></div>
-      <div class="nav-item" onclick="goScreen('shops')"><div class="nav-icon">🏪</div><div class="nav-label">المحلات</div></div>
-      <div class="nav-item" onclick="goScreen('notifications')"><div class="nav-icon">🔔</div><div class="nav-label">الإشعارات</div></div>
-      <div class="nav-item active"><div class="nav-icon">⚙️</div><div class="nav-label">الإعدادات</div></div>
-    </nav>
-  </div>
-
-  <!-- ══ DASHBOARD (Shop Owner) ══ -->
-  <div class="screen" id="screen-dashboard">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="goBack()">
-        <span>←</span>
-        <span class="section-title" id="dashPageTitle">لوحة التاجر</span>
-      </div>
-    </div>
-    <div class="content">
-      <div class="dashboard-header">
-        <div class="dashboard-welcome" id="dashWelcome">مرحباً،</div>
-        <div class="dashboard-name" id="dashName">بقالة أبو كرار</div>
-        <div class="dashboard-stats">
-          <div class="dash-stat"><div class="dash-stat-val">142</div><div class="dash-stat-label" id="dashViews">مشاهدة</div></div>
-          <div class="dash-stat"><div class="dash-stat-val">38</div><div class="dash-stat-label" id="dashCalls">اتصال</div></div>
-          <div class="dash-stat"><div class="dash-stat-val">4.8</div><div class="dash-stat-label" id="dashRating">التقييم</div></div>
-        </div>
-      </div>
-      <!-- Status Toggle -->
-      <div class="status-toggle-card">
-        <div class="status-toggle-title" id="dashStatusTitle">حالة المحل</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);" class="pulse" id="dashStatusDot"></div>
-          <span id="dashStatusText" style="font-size:15px;font-weight:700;">مفتوح الآن</span>
-        </div>
-        <div class="status-btns">
-          <div class="status-btn open-btn" onclick="changeShopStatus('open')">🟢 <span id="btnOpen">فتح المحل</span></div>
-          <div class="status-btn close-btn" onclick="changeShopStatus('closed')">🔴 <span id="btnClose">إغلاق المحل</span></div>
-        </div>
-      </div>
-      <!-- Products -->
-      <div style="margin:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;margin-bottom:12px;">
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:15px;font-weight:700;" id="dashProductsTitle">المنتجات والأسعار</div>
-          <div class="icon-btn" onclick="showAddProduct()">+</div>
-        </div>
-        <div id="dashProductList">
-          <div class="product-item">
-            <div><div class="product-name">بيض</div><div class="product-unit">للدرزن</div></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div><div class="product-price">2,750</div><div class="product-currency">دينار</div></div>
-              <div class="icon-btn" style="width:32px;height:32px;font-size:14px;" onclick="editProduct(this)">✏️</div>
-            </div>
-          </div>
-          <div class="product-item">
-            <div><div class="product-name">خبز</div><div class="product-unit">الرغيف</div></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div><div class="product-price">250</div><div class="product-currency">دينار</div></div>
-              <div class="icon-btn" style="width:32px;height:32px;font-size:14px;" onclick="editProduct(this)">✏️</div>
-            </div>
-          </div>
-          <div class="product-item">
-            <div><div class="product-name">حليب</div><div class="product-unit">الكيلو</div></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div><div class="product-price">1,500</div><div class="product-currency">دينار</div></div>
-              <div class="icon-btn" style="width:32px;height:32px;font-size:14px;" onclick="editProduct(this)">✏️</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Send Notification -->
-      <div style="margin:0 16px 16px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:12px;" id="dashSendNotif">إرسال إشعار للمجتمع</div>
-        <textarea class="form-input" rows="2" id="notifText" style="resize:none;margin-bottom:10px;" placeholder="اكتب إشعارك هنا..."></textarea>
-        <button class="btn btn-primary" style="padding:12px;" onclick="sendOwnerNotif()">📢 <span id="btnSendNotif">إرسال الإشعار</span></button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODALS ══ -->
-  <!-- Status Change Modal -->
-  <div class="modal-overlay" id="statusModal">
-    <div class="modal" style="position:relative;">
-      <div class="modal-handle"></div>
-      <div class="modal-title" id="statusModalTitle">تأكيد تغيير الحالة</div>
-      <div class="modal-sub" id="statusModalSub">أدخل كلمة المرور لتأكيد تغيير حالة المحل</div>
-      <div class="form-group">
-        <label class="form-label" id="labelPass">كلمة المرور</label>
-        <input class="form-input" type="password" id="statusPassInput" placeholder="••••••">
-      </div>
-      <button class="btn btn-primary" onclick="confirmStatusChange()" id="btnConfirmStatus">تأكيد</button>
-      <button class="btn btn-outline" onclick="closeModal('statusModal')" id="btnCancelStatus">إلغاء</button>
-    </div>
-  </div>
-
-  <!-- Upgrade Modal -->
-  <div class="modal-overlay" id="upgradeModal">
-    <div class="modal" style="position:relative;">
-      <div class="modal-handle"></div>
-      <div style="text-align:center;font-size:48px;margin-bottom:12px;">🏪</div>
-      <div class="modal-title" style="text-align:center;" id="upgradeTitle">ترقية لحساب تاجر</div>
-      <div class="modal-sub" style="text-align:center;" id="upgradeSub">احصل على لوحة تحكم كاملة لإدارة محلك</div>
-      <div style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);border-radius:14px;padding:16px;margin-bottom:16px;">
-        <div style="font-size:28px;font-weight:900;color:var(--accent);text-align:center;">1,000 <span style="font-size:14px;color:var(--text2);">دينار عراقي</span></div>
-        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:4px;" id="upgradePriceNote">دفع لمرة واحدة</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px;">✅ <span id="feat1">لوحة تحكم للمحل</span></div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px;">✅ <span id="feat2">تغيير الأسعار في أي وقت</span></div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px;">✅ <span id="feat3">إرسال إشعارات للمجتمع</span></div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px;">✅ <span id="feat4">إحصائيات وتحليلات</span></div>
-      </div>
-      <button class="btn btn-primary" onclick="closeModal('upgradeModal');showToast('تم الترقية بنجاح! 🎉','success')" id="btnUpgrade">دفع الآن</button>
-      <button class="btn btn-outline" onclick="closeModal('upgradeModal')" id="btnCancelUpgrade">لاحقاً</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ══════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════
-const state = {
-  lang: 'ar',
-  role: 'user',
-  screenStack: [],
-  currentScreen: 'splash',
-  pendingStatusChange: null
+const speakEn = (t) => {
+  if (!t) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = "en-US"; u.rate = 0.85;
+  if (_enV) u.voice = _enV;
+  window.speechSynthesis.speak(u);
+};
+const speakAr = (t) => {
+  if (!t) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = "ar-SA"; u.rate = 0.9;
+  if (_arV) u.voice = _arV;
+  window.speechSynthesis.speak(u);
+};
+const speakBoth = (en, ar) => {
+  window.speechSynthesis.cancel();
+  const u1 = new SpeechSynthesisUtterance(en);
+  u1.lang = "en-US"; u1.rate = 0.85; if (_enV) u1.voice = _enV;
+  const u2 = new SpeechSynthesisUtterance(ar);
+  u2.lang = "ar-SA"; u2.rate = 0.9; if (_arV) u2.voice = _arV;
+  window.speechSynthesis.speak(u1);
+  window.speechSynthesis.speak(u2);
 };
 
-// ══════════════════════════════════════════
-// TRANSLATIONS
-// ══════════════════════════════════════════
-const T = {
-  ar: {
-    appName: 'شريخان لايف', brandSub: 'مرحباً بك في مجتمعك الرقمي',
-    authPhoneTitle: 'تسجيل الدخول', authPhoneSub: 'أدخل رقم هاتفك للمتابعة',
-    labelPhone: 'رقم الهاتف', labelRole: 'نوع الحساب',
-    roleUser: 'مستخدم عادي', roleOwner: 'صاحب محل',
-    btnSendOTP: 'إرسال رمز التحقق', authDisclaimer: 'بالمتابعة توافق على شروط الاستخدام',
-    otpTitle: 'رمز التحقق', otpSub: 'تم إرسال رمز من 4 أرقام إلى هاتفك',
-    btnVerify: 'تحقق والدخول', btnBackPhone: 'رجوع', otpDemo: 'للعرض: أدخل أي 4 أرقام',
-    heroGreeting: 'صباح الخير، شريخان 👋', heroTitle: 'اكتشف خدمات', heroTitleEm: 'مجتمعك',
-    statShops: 'محل', statDrivers: 'سائق', statServices: 'خدمة',
-    gasTitle: 'الغاز متوفر الآن!', gasSub: 'موزع الغاز - أبو علي',
-    catTitle: 'الأقسام', catShops: 'المحلات', catPrices: 'الأسعار', catTransport: 'النقل',
-    catHealth: 'الصحة', catSports: 'الرياضة', catEducation: 'التعليم', catProfessions: 'المهن', catMukhtar: 'المختار',
-    openNowTitle: 'مفتوح الآن', seeAll: 'عرض الكل', seeAllNotif: 'عرض الكل',
-    recentNotifTitle: 'آخر الإشعارات', notif1Title: 'الغاز متوفر الآن', notif1Text: 'أبو علي موزع الغاز',
-    notif2Title: 'بقالة أبو كرار فتحت', notif2Text: 'المحل الآن مفتوح للزبائن',
-    navHome: 'الرئيسية', navShops: 'المحلات', navNotifs: 'الإشعارات', navSettings: 'الإعدادات',
-    shopsPageTitle: 'المحلات', filterAll: 'الكل', filterOpen: 'مفتوح 🟢', filterClosed: 'مغلق 🔴',
-    filterGrocery: 'بقالة', filterMeat: 'لحوم', filterPharmacy: 'صيدلية',
-    pricesPageTitle: 'الأسعار', avgPriceLabel: 'متوسط الأسعار اليوم', avgPriceNote: 'مقارنة أسعار المحلات المختلفة',
-    priceTitleEggs: 'البيض 🥚', priceUnitDoz: 'للدرزن', priceTitleMeat: 'اللحم 🥩', priceUnitKg: 'للكيلو',
-    priceTitleGas: 'الغاز ⛽', priceUnitCyl: 'للأسطوانة', avgLabel: 'المتوسط', avgBadge: 'متوسط',
-    transportPageTitle: 'النقل والمواصلات', d1Name: 'أبو علاء - تاكسي', d2Name: 'حسن - سيارة خاصة',
-    availBadge: 'متاح', busyBadge: 'مشغول',
-    healthPageTitle: 'الصحة', pharmaciesTitle: 'الصيدليات', clinicsTitle: 'العيادات',
-    sportsPageTitle: 'الرياضة', educationPageTitle: 'التعليم', schoolsTitle: 'المدارس',
-    teachersTitle: 'مدرسون خصوصيون', professionsPageTitle: 'المهن والخدمات',
-    mukhtarPageTitle: 'المختار', mukhtarName: 'الحاج كريم الأمين', mukhtarRole: 'مختار محلة شريخان',
-    mukhtarStatus: 'الحالة', mukhtarHoursLabel: 'ساعات العمل', mukhtarGreenCard: 'يوم البطاقة الخضراء',
-    announcementLabel: '📢 إعلان:', mukhtarAnnounce: 'غداً الاثنين تعطيل في مكاتب المختار بمناسبة العطلة الرسمية',
-    notifsPageTitle: 'الإشعارات', settingsPageTitle: 'الإعدادات', settingsUserName: 'أبو محمد',
-    settingsUserType: 'مستخدم عادي', settingsLang: 'اللغة', settingsLangVal: 'العربية',
-    settingsNotif: 'الإشعارات', settingsUpgrade: 'ترقية لحساب تاجر', settingsDashboard: 'لوحة التاجر',
-    settingsAbout: 'عن التطبيق', settingsLogout: 'تسجيل الخروج',
-    dashPageTitle: 'لوحة التاجر', dashWelcome: 'مرحباً،', dashName: 'بقالة أبو كرار',
-    dashViews: 'مشاهدة', dashCalls: 'اتصال', dashRating: 'التقييم', dashStatusTitle: 'حالة المحل',
-    dashStatusText: 'مفتوح الآن', btnOpen: 'فتح المحل', btnClose: 'إغلاق المحل',
-    dashProductsTitle: 'المنتجات والأسعار', dashSendNotif: 'إرسال إشعار للمجتمع', btnSendNotif: 'إرسال الإشعار',
-    statusModalTitle: 'تأكيد تغيير الحالة', statusModalSub: 'أدخل كلمة المرور لتأكيد تغيير حالة المحل',
-    labelPass: 'كلمة المرور', btnConfirmStatus: 'تأكيد', btnCancelStatus: 'إلغاء',
-    upgradeTitle: 'ترقية لحساب تاجر', upgradeSub: 'احصل على لوحة تحكم كاملة لإدارة محلك',
-    upgradePriceNote: 'دفع لمرة واحدة', feat1: 'لوحة تحكم للمحل', feat2: 'تغيير الأسعار في أي وقت',
-    feat3: 'إرسال إشعارات للمجتمع', feat4: 'إحصائيات وتحليلات',
-    btnUpgrade: 'دفع الآن', btnCancelUpgrade: 'لاحقاً',
-    splashSub: 'خدمات مجتمعك في مكان واحد', splashNameAr: 'شريخان لايف',
-    backArrowShops: '←', backArrowShopDetail: '←', backArrowPrices: '←',
-    searchPlaceholder: 'ابحث عن محل، خدمة، شخص...',
-    notifPlaceholder: 'اكتب إشعارك هنا...'
-  },
-  en: {
-    appName: 'Shirakhan Life', brandSub: 'Welcome to your digital community',
-    authPhoneTitle: 'Sign In', authPhoneSub: 'Enter your phone number to continue',
-    labelPhone: 'Phone Number', labelRole: 'Account Type',
-    roleUser: 'Normal User', roleOwner: 'Shop Owner',
-    btnSendOTP: 'Send Verification Code', authDisclaimer: 'By continuing you agree to our Terms',
-    otpTitle: 'Verification Code', otpSub: 'A 4-digit code was sent to your phone',
-    btnVerify: 'Verify & Enter', btnBackPhone: 'Back', otpDemo: 'Demo: Enter any 4 digits',
-    heroGreeting: 'Good morning, Shirakhan 👋', heroTitle: 'Explore services of', heroTitleEm: 'your community',
-    statShops: 'Shops', statDrivers: 'Drivers', statServices: 'Services',
-    gasTitle: 'Gas is Available Now!', gasSub: 'Gas Distributor - Abu Ali',
-    catTitle: 'Categories', catShops: 'Shops', catPrices: 'Prices', catTransport: 'Transport',
-    catHealth: 'Health', catSports: 'Sports', catEducation: 'Education', catProfessions: 'Professions', catMukhtar: 'Mukhtar',
-    openNowTitle: 'Open Now', seeAll: 'See All', seeAllNotif: 'See All',
-    recentNotifTitle: 'Recent Notifications', notif1Title: 'Gas Available Now', notif1Text: 'Abu Ali Gas Distributor',
-    notif2Title: 'Abu Karar Grocery Opened', notif2Text: 'Shop is now open for customers',
-    navHome: 'Home', navShops: 'Shops', navNotifs: 'Notifications', navSettings: 'Settings',
-    shopsPageTitle: 'Shops', filterAll: 'All', filterOpen: 'Open 🟢', filterClosed: 'Closed 🔴',
-    filterGrocery: 'Grocery', filterMeat: 'Meat', filterPharmacy: 'Pharmacy',
-    pricesPageTitle: 'Prices', avgPriceLabel: "Today's Average Prices", avgPriceNote: 'Comparing prices across shops',
-    priceTitleEggs: 'Eggs 🥚', priceUnitDoz: 'per dozen', priceTitleMeat: 'Meat 🥩', priceUnitKg: 'per kg',
-    priceTitleGas: 'Gas ⛽', priceUnitCyl: 'per cylinder', avgLabel: 'Average', avgBadge: 'avg',
-    transportPageTitle: 'Transport & Transit', d1Name: 'Abu Alaa - Taxi', d2Name: 'Hassan - Private Car',
-    availBadge: 'Available', busyBadge: 'Busy',
-    healthPageTitle: 'Health', pharmaciesTitle: 'Pharmacies', clinicsTitle: 'Clinics',
-    sportsPageTitle: 'Sports', educationPageTitle: 'Education', schoolsTitle: 'Schools',
-    teachersTitle: 'Private Teachers', professionsPageTitle: 'Professions & Services',
-    mukhtarPageTitle: 'Mukhtar', mukhtarName: 'Hajj Kareem Al-Amin', mukhtarRole: 'Mukhtar of Shirakhan District',
-    mukhtarStatus: 'Status', mukhtarHoursLabel: 'Working Hours', mukhtarGreenCard: 'Green Card Day',
-    announcementLabel: '📢 Announcement:', mukhtarAnnounce: 'Office closed Monday due to public holiday',
-    notifsPageTitle: 'Notifications', settingsPageTitle: 'Settings', settingsUserName: 'Abu Mohammad',
-    settingsUserType: 'Normal User', settingsLang: 'Language', settingsLangVal: 'English',
-    settingsNotif: 'Notifications', settingsUpgrade: 'Upgrade to Shop Account', settingsDashboard: 'Shop Dashboard',
-    settingsAbout: 'About App', settingsLogout: 'Log Out',
-    dashPageTitle: 'Shop Dashboard', dashWelcome: 'Welcome,', dashName: 'Abu Karar Grocery',
-    dashViews: 'Views', dashCalls: 'Calls', dashRating: 'Rating', dashStatusTitle: 'Shop Status',
-    dashStatusText: 'Open Now', btnOpen: 'Open Shop', btnClose: 'Close Shop',
-    dashProductsTitle: 'Products & Prices', dashSendNotif: 'Send Community Notification', btnSendNotif: 'Send Notification',
-    statusModalTitle: 'Confirm Status Change', statusModalSub: 'Enter password to confirm shop status change',
-    labelPass: 'Password', btnConfirmStatus: 'Confirm', btnCancelStatus: 'Cancel',
-    upgradeTitle: 'Upgrade to Shop Account', upgradeSub: 'Get a full dashboard to manage your shop',
-    upgradePriceNote: 'One-time payment', feat1: 'Full shop dashboard', feat2: 'Update prices anytime',
-    feat3: 'Send community notifications', feat4: 'Statistics & analytics',
-    btnUpgrade: 'Pay Now', btnCancelUpgrade: 'Later',
-    splashSub: 'Your community services in one place', splashNameAr: 'Shirakhan Life',
-    backArrowShops: '→', backArrowShopDetail: '→', backArrowPrices: '→',
-    searchPlaceholder: 'Search shops, services, people...',
-    notifPlaceholder: 'Write your notification here...'
-  }
-};
-
-function t(key) { return (T[state.lang] || T.ar)[key] || key; }
-
-// ══════════════════════════════════════════
-// SHOPS DATA
-// ══════════════════════════════════════════
-const shops = [
-  { id:1, name:'بقالة أبو كرار', nameEn:'Abu Karar Grocery', icon:'🛒', status:'open', category:'grocery', desc:'بقالة متكاملة - بيض، خبز، مواد غذائية', descEn:'Full grocery - eggs, bread, food items', phone:'07811111111', rating:4.8, products:[{n:'بيض',p:'2,750'},{n:'خبز',p:'250'},{n:'حليب',p:'1,500'}] },
-  { id:2, name:'لحم أبو فاضل', nameEn:'Abu Fadhel Meat', icon:'🥩', status:'open', category:'meat', desc:'أحسن اللحوم الطازجة يومياً', descEn:'Freshest daily meats', phone:'07822222222', rating:4.9, products:[{n:'لحم غنم',p:'18,000'},{n:'دجاج',p:'7,000'},{n:'سمك',p:'12,000'}] },
-  { id:3, name:'صيدلية الرحمة', nameEn:'Al-Rahma Pharmacy', icon:'💊', status:'open', category:'pharmacy', desc:'أدوية ومستلزمات طبية', descEn:'Medicine and medical supplies', phone:'07833333333', rating:4.7, products:[{n:'باراسيتامول',p:'500'},{n:'فيتامينات',p:'3,000'},{n:'مضادات حيوية',p:'5,000'}] },
-  { id:4, name:'سوبرماركت الأمل', nameEn:'Al-Amal Supermarket', icon:'🏬', status:'open', category:'grocery', desc:'سوبرماركت شامل لكل احتياجاتك', descEn:'Complete supermarket for all your needs', phone:'07844444444', rating:4.5, products:[{n:'أرز',p:'3,500'},{n:'زيت',p:'8,000'},{n:'سكر',p:'2,000'}] },
-  { id:5, name:'جزارة الأمين', nameEn:'Al-Amin Butcher', icon:'🔪', status:'closed', category:'meat', desc:'لحوم مذبوحة على الطريقة الإسلامية', descEn:'Halal-slaughtered meats', phone:'07855555555', rating:4.3, products:[] },
-  { id:6, name:'بقالة الصادق', nameEn:'Al-Sadiq Grocery', icon:'🛍️', status:'unknown', category:'grocery', desc:'بقالة صغيرة - مواد أساسية', descEn:'Small grocery - essential items', phone:'07866666666', rating:4.0, products:[] },
+// ══════════════════════════════════════════════════════════
+//  WORDS DATABASE  (500+)
+// ══════════════════════════════════════════════════════════
+const W = [
+  // ── A1 ──
+  {en:"Hello",ph:"/həˈloʊ/",ar:"مرحباً",t:"تعبير",l:"A1",ex:"Hello! How are you?"},
+  {en:"Goodbye",ph:"/ɡʊdˈbaɪ/",ar:"وداعاً",t:"تعبير",l:"A1",ex:"Goodbye! See you tomorrow."},
+  {en:"Please",ph:"/pliːz/",ar:"من فضلك",t:"ظرف",l:"A1",ex:"Please help me."},
+  {en:"Thank you",ph:"/θæŋk juː/",ar:"شكراً",t:"تعبير",l:"A1",ex:"Thank you so much!"},
+  {en:"Sorry",ph:"/ˈsɒri/",ar:"آسف",t:"صفة",l:"A1",ex:"I'm sorry for being late."},
+  {en:"Yes",ph:"/jɛs/",ar:"نعم",t:"ظرف",l:"A1",ex:"Yes, I understand."},
+  {en:"No",ph:"/noʊ/",ar:"لا",t:"ظرف",l:"A1",ex:"No, that's wrong."},
+  {en:"Water",ph:"/ˈwɔːtər/",ar:"ماء",t:"اسم",l:"A1",ex:"I need water."},
+  {en:"Food",ph:"/fuːd/",ar:"طعام",t:"اسم",l:"A1",ex:"The food is delicious."},
+  {en:"House",ph:"/haʊs/",ar:"بيت",t:"اسم",l:"A1",ex:"This is my house."},
+  {en:"Book",ph:"/bʊk/",ar:"كتاب",t:"اسم",l:"A1",ex:"I love reading books."},
+  {en:"School",ph:"/skuːl/",ar:"مدرسة",t:"اسم",l:"A1",ex:"She goes to school every day."},
+  {en:"Friend",ph:"/frɛnd/",ar:"صديق",t:"اسم",l:"A1",ex:"He is my best friend."},
+  {en:"Family",ph:"/ˈfæmɪli/",ar:"عائلة",t:"اسم",l:"A1",ex:"My family is important."},
+  {en:"Work",ph:"/wɜːrk/",ar:"عمل",t:"اسم/فعل",l:"A1",ex:"I work every day."},
+  {en:"Beautiful",ph:"/ˈbjuːtɪfəl/",ar:"جميل",t:"صفة",l:"A1",ex:"She has a beautiful smile."},
+  {en:"Happy",ph:"/ˈhæpi/",ar:"سعيد",t:"صفة",l:"A1",ex:"I am happy today."},
+  {en:"Sad",ph:"/sæd/",ar:"حزين",t:"صفة",l:"A1",ex:"He looks sad."},
+  {en:"Big",ph:"/bɪɡ/",ar:"كبير",t:"صفة",l:"A1",ex:"This is a big house."},
+  {en:"Small",ph:"/smɔːl/",ar:"صغير",t:"صفة",l:"A1",ex:"She has a small car."},
+  {en:"Hot",ph:"/hɒt/",ar:"ساخن",t:"صفة",l:"A1",ex:"The coffee is hot."},
+  {en:"Cold",ph:"/koʊld/",ar:"بارد",t:"صفة",l:"A1",ex:"The weather is cold."},
+  {en:"Money",ph:"/ˈmʌni/",ar:"مال",t:"اسم",l:"A1",ex:"I need money."},
+  {en:"Time",ph:"/taɪm/",ar:"وقت",t:"اسم",l:"A1",ex:"Time flies fast."},
+  {en:"Love",ph:"/lʌv/",ar:"حب",t:"اسم/فعل",l:"A1",ex:"I love my family."},
+  {en:"Help",ph:"/hɛlp/",ar:"مساعدة",t:"فعل/اسم",l:"A1",ex:"Can you help me?"},
+  {en:"Think",ph:"/θɪŋk/",ar:"يفكر",t:"فعل",l:"A1",ex:"I think you are right."},
+  {en:"Know",ph:"/noʊ/",ar:"يعرف",t:"فعل",l:"A1",ex:"I know the answer."},
+  {en:"Want",ph:"/wɒnt/",ar:"يريد",t:"فعل",l:"A1",ex:"I want a cup of tea."},
+  {en:"Need",ph:"/niːd/",ar:"يحتاج",t:"فعل",l:"A1",ex:"I need your help."},
+  {en:"Go",ph:"/ɡoʊ/",ar:"يذهب",t:"فعل",l:"A1",ex:"Let's go to the park."},
+  {en:"Come",ph:"/kʌm/",ar:"يأتي",t:"فعل",l:"A1",ex:"Come here, please."},
+  {en:"See",ph:"/siː/",ar:"يرى",t:"فعل",l:"A1",ex:"I can see the stars."},
+  {en:"Give",ph:"/ɡɪv/",ar:"يعطي",t:"فعل",l:"A1",ex:"Give me your hand."},
+  {en:"Get",ph:"/ɡɛt/",ar:"يحصل على",t:"فعل",l:"A1",ex:"Can I get a glass of water?"},
+  {en:"Make",ph:"/meɪk/",ar:"يصنع",t:"فعل",l:"A1",ex:"Let's make a plan."},
+  {en:"Take",ph:"/teɪk/",ar:"يأخذ",t:"فعل",l:"A1",ex:"Take your medicine."},
+  {en:"Look",ph:"/lʊk/",ar:"ينظر",t:"فعل",l:"A1",ex:"Look at this picture."},
+  {en:"Learn",ph:"/lɜːrn/",ar:"يتعلم",t:"فعل",l:"A1",ex:"I want to learn English."},
+  {en:"Study",ph:"/ˈstʌdi/",ar:"يدرس",t:"فعل",l:"A1",ex:"I study every evening."},
+  {en:"Eat",ph:"/iːt/",ar:"يأكل",t:"فعل",l:"A1",ex:"I eat breakfast every day."},
+  {en:"Drink",ph:"/drɪŋk/",ar:"يشرب",t:"فعل",l:"A1",ex:"She drinks coffee in the morning."},
+  {en:"Sleep",ph:"/sliːp/",ar:"ينام",t:"فعل",l:"A1",ex:"Children need to sleep early."},
+  {en:"Talk",ph:"/tɔːk/",ar:"يتحدث",t:"فعل",l:"A1",ex:"We talk every day."},
+  {en:"Walk",ph:"/wɔːk/",ar:"يمشي",t:"فعل",l:"A1",ex:"I walk to school."},
+  {en:"Run",ph:"/rʌn/",ar:"يركض",t:"فعل",l:"A1",ex:"He runs every morning."},
+  {en:"Open",ph:"/ˈoʊpən/",ar:"يفتح",t:"فعل",l:"A1",ex:"Open the window."},
+  {en:"Close",ph:"/kloʊz/",ar:"يغلق",t:"فعل",l:"A1",ex:"Close the door."},
+  {en:"Good",ph:"/ɡʊd/",ar:"جيد",t:"صفة",l:"A1",ex:"This is a good book."},
+  {en:"Bad",ph:"/bæd/",ar:"سيئ",t:"صفة",l:"A1",ex:"That was a bad idea."},
+  {en:"New",ph:"/njuː/",ar:"جديد",t:"صفة",l:"A1",ex:"I bought a new phone."},
+  {en:"Old",ph:"/oʊld/",ar:"قديم",t:"صفة",l:"A1",ex:"This is an old building."},
+  {en:"Day",ph:"/deɪ/",ar:"يوم",t:"اسم",l:"A1",ex:"Have a good day!"},
+  {en:"Night",ph:"/naɪt/",ar:"ليل",t:"اسم",l:"A1",ex:"Goodnight!"},
+  {en:"Morning",ph:"/ˈmɔːrnɪŋ/",ar:"صباح",t:"اسم",l:"A1",ex:"Good morning!"},
+  {en:"Year",ph:"/jɪər/",ar:"سنة / عام",t:"اسم",l:"A1",ex:"Happy New Year!"},
+  {en:"Person",ph:"/ˈpɜːrsən/",ar:"شخص",t:"اسم",l:"A1",ex:"He is a kind person."},
+  {en:"Man",ph:"/mæn/",ar:"رجل",t:"اسم",l:"A1",ex:"The man is tall."},
+  {en:"Woman",ph:"/ˈwʊmən/",ar:"امرأة",t:"اسم",l:"A1",ex:"The woman is kind."},
+  {en:"Child",ph:"/tʃaɪld/",ar:"طفل",t:"اسم",l:"A1",ex:"The child is playing."},
+  {en:"City",ph:"/ˈsɪti/",ar:"مدينة",t:"اسم",l:"A1",ex:"I live in a big city."},
+  {en:"Country",ph:"/ˈkʌntri/",ar:"بلد",t:"اسم",l:"A1",ex:"I love my country."},
+  {en:"Name",ph:"/neɪm/",ar:"اسم",t:"اسم",l:"A1",ex:"What is your name?"},
+  {en:"Red",ph:"/rɛd/",ar:"أحمر",t:"صفة",l:"A1",ex:"The apple is red."},
+  {en:"Blue",ph:"/bluː/",ar:"أزرق",t:"صفة",l:"A1",ex:"The sky is blue."},
+  {en:"Green",ph:"/ɡriːn/",ar:"أخضر",t:"صفة",l:"A1",ex:"The grass is green."},
+  {en:"White",ph:"/waɪt/",ar:"أبيض",t:"صفة",l:"A1",ex:"The snow is white."},
+  {en:"Black",ph:"/blæk/",ar:"أسود",t:"صفة",l:"A1",ex:"The night is black."},
+  {en:"Yellow",ph:"/ˈjɛloʊ/",ar:"أصفر",t:"صفة",l:"A1",ex:"The banana is yellow."},
+  {en:"Orange",ph:"/ˈɒrɪndʒ/",ar:"برتقالي",t:"صفة",l:"A1",ex:"The pumpkin is orange."},
+  {en:"One",ph:"/wʌn/",ar:"واحد",t:"عدد",l:"A1",ex:"I have one sister."},
+  {en:"Two",ph:"/tuː/",ar:"اثنان",t:"عدد",l:"A1",ex:"I have two brothers."},
+  {en:"Three",ph:"/θriː/",ar:"ثلاثة",t:"عدد",l:"A1",ex:"She is three years old."},
+  {en:"Four",ph:"/fɔːr/",ar:"أربعة",t:"عدد",l:"A1",ex:"There are four seasons."},
+  {en:"Five",ph:"/faɪv/",ar:"خمسة",t:"عدد",l:"A1",ex:"I have five fingers."},
+  {en:"Six",ph:"/sɪks/",ar:"ستة",t:"عدد",l:"A1",ex:"There are six days."},
+  {en:"Seven",ph:"/ˈsɛvən/",ar:"سبعة",t:"عدد",l:"A1",ex:"A week has seven days."},
+  {en:"Eight",ph:"/eɪt/",ar:"ثمانية",t:"عدد",l:"A1",ex:"I sleep eight hours."},
+  {en:"Nine",ph:"/naɪn/",ar:"تسعة",t:"عدد",l:"A1",ex:"She is nine years old."},
+  {en:"Ten",ph:"/tɛn/",ar:"عشرة",t:"عدد",l:"A1",ex:"Count to ten."},
+  // ── A2 ──
+  {en:"Important",ph:"/ɪmˈpɔːrtənt/",ar:"مهم",t:"صفة",l:"A2",ex:"Education is important."},
+  {en:"Understand",ph:"/ˌʌndərˈstænd/",ar:"يفهم",t:"فعل",l:"A2",ex:"I don't understand this."},
+  {en:"Remember",ph:"/rɪˈmɛmbər/",ar:"يتذكر",t:"فعل",l:"A2",ex:"Do you remember me?"},
+  {en:"Forget",ph:"/fərˈɡɛt/",ar:"ينسى",t:"فعل",l:"A2",ex:"Don't forget your keys."},
+  {en:"Teach",ph:"/tiːtʃ/",ar:"يُعلّم",t:"فعل",l:"A2",ex:"She teaches English."},
+  {en:"Travel",ph:"/ˈtrævəl/",ar:"يسافر",t:"فعل",l:"A2",ex:"I love to travel."},
+  {en:"Meet",ph:"/miːt/",ar:"يلتقي",t:"فعل",l:"A2",ex:"Let's meet at 5pm."},
+  {en:"Speak",ph:"/spiːk/",ar:"يتحدث",t:"فعل",l:"A2",ex:"She speaks three languages."},
+  {en:"Listen",ph:"/ˈlɪsən/",ar:"يستمع",t:"فعل",l:"A2",ex:"Listen carefully."},
+  {en:"Write",ph:"/raɪt/",ar:"يكتب",t:"فعل",l:"A2",ex:"Write your name here."},
+  {en:"Read",ph:"/riːd/",ar:"يقرأ",t:"فعل",l:"A2",ex:"I read every night."},
+  {en:"Play",ph:"/pleɪ/",ar:"يلعب",t:"فعل",l:"A2",ex:"Children love to play."},
+  {en:"Buy",ph:"/baɪ/",ar:"يشتري",t:"فعل",l:"A2",ex:"I want to buy a car."},
+  {en:"Pay",ph:"/peɪ/",ar:"يدفع",t:"فعل",l:"A2",ex:"Can I pay by card?"},
+  {en:"Find",ph:"/faɪnd/",ar:"يجد",t:"فعل",l:"A2",ex:"I can't find my keys."},
+  {en:"Send",ph:"/sɛnd/",ar:"يرسل",t:"فعل",l:"A2",ex:"Send me a message."},
+  {en:"Start",ph:"/stɑːrt/",ar:"يبدأ",t:"فعل",l:"A2",ex:"Let's start the meeting."},
+  {en:"Finish",ph:"/ˈfɪnɪʃ/",ar:"ينهي",t:"فعل",l:"A2",ex:"Did you finish your homework?"},
+  {en:"Wait",ph:"/weɪt/",ar:"ينتظر",t:"فعل",l:"A2",ex:"Please wait a moment."},
+  {en:"Ask",ph:"/æsk/",ar:"يسأل",t:"فعل",l:"A2",ex:"She asked a good question."},
+  {en:"Tell",ph:"/tɛl/",ar:"يخبر",t:"فعل",l:"A2",ex:"Tell me the truth."},
+  {en:"Show",ph:"/ʃoʊ/",ar:"يُظهر",t:"فعل",l:"A2",ex:"Show me your work."},
+  {en:"Try",ph:"/traɪ/",ar:"يحاول",t:"فعل",l:"A2",ex:"Try your best!"},
+  {en:"Use",ph:"/juːz/",ar:"يستخدم",t:"فعل",l:"A2",ex:"Use a dictionary."},
+  {en:"Change",ph:"/tʃeɪndʒ/",ar:"يغير",t:"فعل",l:"A2",ex:"People change over time."},
+  {en:"Call",ph:"/kɔːl/",ar:"يتصل",t:"فعل",l:"A2",ex:"Call me later."},
+  {en:"Answer",ph:"/ˈænsər/",ar:"يجيب",t:"فعل",l:"A2",ex:"Answer the question."},
+  {en:"Question",ph:"/ˈkwɛstʃən/",ar:"سؤال",t:"اسم",l:"A2",ex:"That's a good question."},
+  {en:"Problem",ph:"/ˈprɒbləm/",ar:"مشكلة",t:"اسم",l:"A2",ex:"What's the problem?"},
+  {en:"Idea",ph:"/aɪˈdɪə/",ar:"فكرة",t:"اسم",l:"A2",ex:"That's a great idea!"},
+  {en:"Way",ph:"/weɪ/",ar:"طريق",t:"اسم",l:"A2",ex:"Which way is the station?"},
+  {en:"Life",ph:"/laɪf/",ar:"حياة",t:"اسم",l:"A2",ex:"Life is beautiful."},
+  {en:"World",ph:"/wɜːrld/",ar:"عالم",t:"اسم",l:"A2",ex:"The world is big."},
+  {en:"Story",ph:"/ˈstɔːri/",ar:"قصة",t:"اسم",l:"A2",ex:"Tell me a story."},
+  {en:"Game",ph:"/ɡeɪm/",ar:"لعبة",t:"اسم",l:"A2",ex:"Let's play a game."},
+  {en:"Team",ph:"/tiːm/",ar:"فريق",t:"اسم",l:"A2",ex:"Our team won!"},
+  {en:"Doctor",ph:"/ˈdɒktər/",ar:"طبيب",t:"اسم",l:"A2",ex:"See a doctor."},
+  {en:"Teacher",ph:"/ˈtiːtʃər/",ar:"مدرس",t:"اسم",l:"A2",ex:"She is a great teacher."},
+  {en:"Student",ph:"/ˈstjuːdənt/",ar:"طالب",t:"اسم",l:"A2",ex:"He is a student."},
+  {en:"Phone",ph:"/foʊn/",ar:"هاتف",t:"اسم",l:"A2",ex:"My phone is new."},
+  {en:"Car",ph:"/kɑːr/",ar:"سيارة",t:"اسم",l:"A2",ex:"He drives a red car."},
+  {en:"Door",ph:"/dɔːr/",ar:"باب",t:"اسم",l:"A2",ex:"Close the door."},
+  {en:"Window",ph:"/ˈwɪndoʊ/",ar:"نافذة",t:"اسم",l:"A2",ex:"Open the window."},
+  {en:"Table",ph:"/ˈteɪbəl/",ar:"طاولة",t:"اسم",l:"A2",ex:"Put it on the table."},
+  {en:"Chair",ph:"/tʃɛr/",ar:"كرسي",t:"اسم",l:"A2",ex:"Sit on the chair."},
+  {en:"Bed",ph:"/bɛd/",ar:"سرير",t:"اسم",l:"A2",ex:"I go to bed at 10pm."},
+  {en:"Kitchen",ph:"/ˈkɪtʃɪn/",ar:"مطبخ",t:"اسم",l:"A2",ex:"She cooks in the kitchen."},
+  {en:"Room",ph:"/ruːm/",ar:"غرفة",t:"اسم",l:"A2",ex:"My room is clean."},
+  {en:"Street",ph:"/striːt/",ar:"شارع",t:"اسم",l:"A2",ex:"Cross the street carefully."},
+  {en:"Market",ph:"/ˈmɑːrkɪt/",ar:"سوق",t:"اسم",l:"A2",ex:"Let's go to the market."},
+  {en:"Restaurant",ph:"/ˈrɛstərɒnt/",ar:"مطعم",t:"اسم",l:"A2",ex:"The restaurant is good."},
+  {en:"Hospital",ph:"/ˈhɒspɪtəl/",ar:"مستشفى",t:"اسم",l:"A2",ex:"The hospital is nearby."},
+  {en:"Airport",ph:"/ˈɛərpɔːrt/",ar:"مطار",t:"اسم",l:"A2",ex:"I'm at the airport."},
+  {en:"Hotel",ph:"/hoʊˈtɛl/",ar:"فندق",t:"اسم",l:"A2",ex:"We stayed at a nice hotel."},
+  {en:"Weather",ph:"/ˈwɛðər/",ar:"طقس",t:"اسم",l:"A2",ex:"The weather is nice today."},
+  {en:"Rain",ph:"/reɪn/",ar:"مطر",t:"اسم",l:"A2",ex:"I love the rain."},
+  {en:"Sun",ph:"/sʌn/",ar:"شمس",t:"اسم",l:"A2",ex:"The sun is bright."},
+  {en:"Tree",ph:"/triː/",ar:"شجرة",t:"اسم",l:"A2",ex:"The tree is tall."},
+  {en:"Cat",ph:"/kæt/",ar:"قطة",t:"اسم",l:"A2",ex:"I have a cat."},
+  {en:"Dog",ph:"/dɒɡ/",ar:"كلب",t:"اسم",l:"A2",ex:"Dogs are loyal."},
+  {en:"Bird",ph:"/bɜːrd/",ar:"طائر",t:"اسم",l:"A2",ex:"The bird is singing."},
+  {en:"Fish",ph:"/fɪʃ/",ar:"سمكة",t:"اسم",l:"A2",ex:"She eats fish on Fridays."},
+  {en:"Horse",ph:"/hɔːrs/",ar:"حصان",t:"اسم",l:"A2",ex:"The horse is fast."},
+  {en:"Cow",ph:"/kaʊ/",ar:"بقرة",t:"اسم",l:"A2",ex:"The cow gives milk."},
+  {en:"Bread",ph:"/brɛd/",ar:"خبز",t:"اسم",l:"A2",ex:"I eat bread every day."},
+  {en:"Milk",ph:"/mɪlk/",ar:"حليب",t:"اسم",l:"A2",ex:"Children drink milk."},
+  {en:"Egg",ph:"/ɛɡ/",ar:"بيضة",t:"اسم",l:"A2",ex:"I eat an egg for breakfast."},
+  {en:"Rice",ph:"/raɪs/",ar:"أرز",t:"اسم",l:"A2",ex:"Rice is a staple food."},
+  {en:"Apple",ph:"/ˈæpəl/",ar:"تفاحة",t:"اسم",l:"A2",ex:"An apple a day keeps doctor away."},
+  {en:"Coffee",ph:"/ˈkɒfi/",ar:"قهوة",t:"اسم",l:"A2",ex:"I drink coffee every morning."},
+  {en:"Tea",ph:"/tiː/",ar:"شاي",t:"اسم",l:"A2",ex:"Would you like some tea?"},
+  {en:"Fast",ph:"/fæst/",ar:"سريع",t:"صفة",l:"A2",ex:"He runs fast."},
+  {en:"Slow",ph:"/sloʊ/",ar:"بطيء",t:"صفة",l:"A2",ex:"The turtle is slow."},
+  {en:"Tall",ph:"/tɔːl/",ar:"طويل",t:"صفة",l:"A2",ex:"He is very tall."},
+  {en:"Short",ph:"/ʃɔːrt/",ar:"قصير",t:"صفة",l:"A2",ex:"She is short."},
+  {en:"Long",ph:"/lɒŋ/",ar:"طويل (مدة)",t:"صفة",l:"A2",ex:"It's a long road."},
+  {en:"High",ph:"/haɪ/",ar:"عالي",t:"صفة",l:"A2",ex:"The mountain is high."},
+  {en:"Low",ph:"/loʊ/",ar:"منخفض",t:"صفة",l:"A2",ex:"The price is low."},
+  {en:"Strong",ph:"/strɒŋ/",ar:"قوي",t:"صفة",l:"A2",ex:"He is strong."},
+  {en:"Weak",ph:"/wiːk/",ar:"ضعيف",t:"صفة",l:"A2",ex:"She felt weak after illness."},
+  // ── B1 ──
+  {en:"Opportunity",ph:"/ˌɒpərˈtjuːnɪti/",ar:"فرصة",t:"اسم",l:"B1",ex:"This is a great opportunity."},
+  {en:"Challenge",ph:"/ˈtʃælɪndʒ/",ar:"تحدي",t:"اسم",l:"B1",ex:"Learning English is a challenge."},
+  {en:"Success",ph:"/səkˈsɛs/",ar:"نجاح",t:"اسم",l:"B1",ex:"Hard work leads to success."},
+  {en:"Experience",ph:"/ɪkˈspɪəriəns/",ar:"خبرة / تجربة",t:"اسم",l:"B1",ex:"I have five years of experience."},
+  {en:"Knowledge",ph:"/ˈnɒlɪdʒ/",ar:"معرفة",t:"اسم",l:"B1",ex:"Knowledge is power."},
+  {en:"Language",ph:"/ˈlæŋɡwɪdʒ/",ar:"لغة",t:"اسم",l:"B1",ex:"English is a global language."},
+  {en:"Culture",ph:"/ˈkʌltʃər/",ar:"ثقافة",t:"اسم",l:"B1",ex:"I love different cultures."},
+  {en:"Society",ph:"/səˈsaɪəti/",ar:"مجتمع",t:"اسم",l:"B1",ex:"Society is changing."},
+  {en:"Education",ph:"/ˌɛdʒʊˈkeɪʃən/",ar:"تعليم",t:"اسم",l:"B1",ex:"Education is the key."},
+  {en:"Technology",ph:"/tɛkˈnɒlədʒi/",ar:"تكنولوجيا",t:"اسم",l:"B1",ex:"Technology changes our lives."},
+  {en:"Environment",ph:"/ɪnˈvaɪrənmənt/",ar:"بيئة",t:"اسم",l:"B1",ex:"We must protect the environment."},
+  {en:"Government",ph:"/ˈɡʌvərnmənt/",ar:"حكومة",t:"اسم",l:"B1",ex:"The government made a law."},
+  {en:"Research",ph:"/rɪˈsɜːrtʃ/",ar:"بحث",t:"اسم/فعل",l:"B1",ex:"He does research on climate."},
+  {en:"Health",ph:"/hɛlθ/",ar:"صحة",t:"اسم",l:"B1",ex:"Your health is important."},
+  {en:"Relationship",ph:"/rɪˈleɪʃənʃɪp/",ar:"علاقة",t:"اسم",l:"B1",ex:"We have a good relationship."},
+  {en:"Community",ph:"/kəˈmjuːnɪti/",ar:"مجتمع محلي",t:"اسم",l:"B1",ex:"Our community is strong."},
+  {en:"Achieve",ph:"/əˈtʃiːv/",ar:"يحقق",t:"فعل",l:"B1",ex:"She achieved her goals."},
+  {en:"Improve",ph:"/ɪmˈpruːv/",ar:"يحسّن",t:"فعل",l:"B1",ex:"I want to improve my English."},
+  {en:"Develop",ph:"/dɪˈvɛləp/",ar:"يطوّر",t:"فعل",l:"B1",ex:"We need to develop new skills."},
+  {en:"Support",ph:"/səˈpɔːrt/",ar:"يدعم",t:"فعل",l:"B1",ex:"I support your decision."},
+  {en:"Explain",ph:"/ɪkˈspleɪn/",ar:"يشرح",t:"فعل",l:"B1",ex:"Can you explain this?"},
+  {en:"Decide",ph:"/dɪˈsaɪd/",ar:"يقرر",t:"فعل",l:"B1",ex:"He decided to leave."},
+  {en:"Believe",ph:"/bɪˈliːv/",ar:"يؤمن",t:"فعل",l:"B1",ex:"I believe in you."},
+  {en:"Describe",ph:"/dɪˈskraɪb/",ar:"يصف",t:"فعل",l:"B1",ex:"Describe what you see."},
+  {en:"Prepare",ph:"/prɪˈpɛr/",ar:"يحضّر",t:"فعل",l:"B1",ex:"Prepare for the exam."},
+  {en:"Responsible",ph:"/rɪˈspɒnsɪbəl/",ar:"مسؤول",t:"صفة",l:"B1",ex:"Be responsible."},
+  {en:"Confident",ph:"/ˈkɒnfɪdənt/",ar:"واثق",t:"صفة",l:"B1",ex:"She is confident."},
+  {en:"Successful",ph:"/səkˈsɛsfəl/",ar:"ناجح",t:"صفة",l:"B1",ex:"He is successful."},
+  {en:"Difficult",ph:"/ˈdɪfɪkəlt/",ar:"صعب",t:"صفة",l:"B1",ex:"This task is difficult."},
+  {en:"Possible",ph:"/ˈpɒsɪbəl/",ar:"ممكن",t:"صفة",l:"B1",ex:"Anything is possible."},
+  {en:"Different",ph:"/ˈdɪfrənt/",ar:"مختلف",t:"صفة",l:"B1",ex:"We are all different."},
+  {en:"Similar",ph:"/ˈsɪmɪlər/",ar:"مشابه",t:"صفة",l:"B1",ex:"We have similar interests."},
+  {en:"Available",ph:"/əˈveɪləbəl/",ar:"متاح",t:"صفة",l:"B1",ex:"Is the doctor available?"},
+  {en:"Necessary",ph:"/ˈnɛsɪsɛri/",ar:"ضروري",t:"صفة",l:"B1",ex:"Is it necessary to go?"},
+  // ── B2 ──
+  {en:"Ambitious",ph:"/æmˈbɪʃəs/",ar:"طموح",t:"صفة",l:"B2",ex:"He is very ambitious."},
+  {en:"Efficient",ph:"/ɪˈfɪʃənt/",ar:"فعّال",t:"صفة",l:"B2",ex:"She is efficient."},
+  {en:"Significant",ph:"/sɪɡˈnɪfɪkənt/",ar:"مهم / كبير",t:"صفة",l:"B2",ex:"That's significant."},
+  {en:"Appropriate",ph:"/əˈproʊpriət/",ar:"مناسب",t:"صفة",l:"B2",ex:"That's not appropriate."},
+  {en:"Flexible",ph:"/ˈflɛksɪbəl/",ar:"مرن",t:"صفة",l:"B2",ex:"Be flexible."},
+  {en:"Consequence",ph:"/ˈkɒnsɪkwəns/",ar:"عاقبة",t:"اسم",l:"B2",ex:"Think about the consequences."},
+  {en:"Perspective",ph:"/pərˈspɛktɪv/",ar:"وجهة نظر",t:"اسم",l:"B2",ex:"From my perspective..."},
+  {en:"Phenomenon",ph:"/fɪˈnɒmɪnən/",ar:"ظاهرة",t:"اسم",l:"B2",ex:"A natural phenomenon."},
+  {en:"Establish",ph:"/ɪˈstæblɪʃ/",ar:"يؤسس",t:"فعل",l:"B2",ex:"They established a company."},
+  {en:"Maintain",ph:"/meɪnˈteɪn/",ar:"يحافظ على",t:"فعل",l:"B2",ex:"Maintain your work."},
+  {en:"Evaluate",ph:"/ɪˈvæljueɪt/",ar:"يقيّم",t:"فعل",l:"B2",ex:"Evaluate your performance."},
+  {en:"Implement",ph:"/ˈɪmplɪmɛnt/",ar:"ينفّذ",t:"فعل",l:"B2",ex:"Implement the plan."},
+  {en:"Analyze",ph:"/ˈænəlaɪz/",ar:"يحلل",t:"فعل",l:"B2",ex:"Analyze the data."},
+  {en:"Generate",ph:"/ˈdʒɛnəreɪt/",ar:"يُنتج",t:"فعل",l:"B2",ex:"Generate new ideas."},
+  {en:"Identify",ph:"/aɪˈdɛntɪfaɪ/",ar:"يُحدد",t:"فعل",l:"B2",ex:"Identify the problem."},
+  // ── C1 ──
+  {en:"Perseverance",ph:"/ˌpɜːrsɪˈvɪərəns/",ar:"المثابرة",t:"اسم",l:"C1",ex:"Success comes through perseverance."},
+  {en:"Sophisticated",ph:"/səˈfɪstɪkeɪtɪd/",ar:"متطور / راقٍ",t:"صفة",l:"C1",ex:"He has sophisticated taste."},
+  {en:"Inevitable",ph:"/ɪnˈɛvɪtəbəl/",ar:"حتمي",t:"صفة",l:"C1",ex:"Change is inevitable."},
+  {en:"Profound",ph:"/prəˈfaʊnd/",ar:"عميق",t:"صفة",l:"C1",ex:"A profound observation."},
+  {en:"Comprehensive",ph:"/ˌkɒmprɪˈhɛnsɪv/",ar:"شامل",t:"صفة",l:"C1",ex:"A comprehensive answer."},
+  {en:"Ambiguous",ph:"/æmˈbɪɡjuəs/",ar:"غامض",t:"صفة",l:"C1",ex:"His answer was ambiguous."},
+  {en:"Deteriorate",ph:"/dɪˈtɪəriəreɪt/",ar:"يتدهور",t:"فعل",l:"C1",ex:"The situation deteriorated."},
+  {en:"Contemplate",ph:"/ˈkɒntəmpleɪt/",ar:"يتأمل",t:"فعل",l:"C1",ex:"Contemplate your next move."},
+  {en:"Paradigm",ph:"/ˈpærədaɪm/",ar:"نموذج",t:"اسم",l:"C1",ex:"A paradigm shift."},
+  {en:"Articulate",ph:"/ɑːrˈtɪkjuleɪt/",ar:"يعبّر بوضوح",t:"فعل",l:"C1",ex:"She articulates ideas well."},
+  // ── C2 ──
+  {en:"Eloquent",ph:"/ˈɛləkwənt/",ar:"بليغ / فصيح",t:"صفة",l:"C2",ex:"He is eloquent."},
+  {en:"Ubiquitous",ph:"/juːˈbɪkwɪtəs/",ar:"منتشر في كل مكان",t:"صفة",l:"C2",ex:"Smartphones are ubiquitous."},
+  {en:"Ephemeral",ph:"/ɪˈfɛmərəl/",ar:"عابر / زائل",t:"صفة",l:"C2",ex:"Fame is ephemeral."},
+  {en:"Magnanimous",ph:"/mæɡˈnænɪməs/",ar:"كريم النفس",t:"صفة",l:"C2",ex:"A magnanimous gesture."},
+  {en:"Juxtapose",ph:"/ˈdʒʌkstəpoʊz/",ar:"يضع جنباً إلى جنب",t:"فعل",l:"C2",ex:"Juxtapose the two ideas."},
+  {en:"Ameliorate",ph:"/əˈmiːliəreɪt/",ar:"يحسّن الوضع",t:"فعل",l:"C2",ex:"Ameliorate the situation."},
 ];
 
-function renderShops(filter='all') {
-  const list = document.getElementById('shopsList');
-  const lang = state.lang;
-  let filtered = shops;
-  if(filter === 'open') filtered = shops.filter(s=>s.status==='open');
-  else if(filter === 'closed') filtered = shops.filter(s=>s.status==='closed');
-  else if(filter === 'grocery') filtered = shops.filter(s=>s.category==='grocery');
-  else if(filter === 'meat') filtered = shops.filter(s=>s.category==='meat');
-  else if(filter === 'pharmacy') filtered = shops.filter(s=>s.category==='pharmacy');
-  
-  list.innerHTML = filtered.map(sh => {
-    const name = lang==='en' && sh.nameEn ? sh.nameEn : sh.name;
-    const desc = lang==='en' && sh.descEn ? sh.descEn : sh.desc;
-    const badgeCls = sh.status==='open'?'badge-open':sh.status==='closed'?'badge-closed':'badge-unknown';
-    const statusText = sh.status==='open'?(lang==='en'?'🟢 Open':'🟢 مفتوح'):sh.status==='closed'?(lang==='en'?'🔴 Closed':'🔴 مغلق'):(lang==='en'?'🟡 Unknown':'🟡 غير معروف');
-    const stars = '⭐'.repeat(Math.floor(sh.rating));
-    return `<div class="shop-card" onclick="openShopDetail(${sh.id})">
-      <div class="shop-card-img" style="font-size:52px;display:flex;align-items:center;justify-content:center;">${sh.icon}</div>
-      <div class="shop-card-body">
-        <div class="shop-card-top">
-          <div class="shop-card-name">${name}</div>
-          <div class="shop-badge ${badgeCls}">${statusText}</div>
+// ══════════════════════════════════════════════════════════
+//  50+ CATEGORIES
+// ══════════════════════════════════════════════════════════
+const CATS = [
+  {e:"🏠",n:"المنزل",w:["bedroom","kitchen","bathroom","sofa","table","chair","window","door","garden","lamp","mirror","carpet","curtain","pillow","blanket","sink","shower","fridge","oven","shelf"]},
+  {e:"🍕",n:"الطعام",w:["apple","bread","milk","coffee","rice","chicken","salad","soup","pizza","juice","egg","cheese","butter","sugar","salt","pepper","oil","tea","chocolate","banana"]},
+  {e:"🥤",n:"المشروبات",w:["water","juice","coffee","tea","milk","soda","beer","wine","lemonade","smoothie","cocktail","energy drink","mineral water","hot chocolate","iced tea","orange juice","apple juice","green tea","herbal tea","coconut water"]},
+  {e:"💼",n:"المهن",w:["doctor","teacher","engineer","lawyer","nurse","manager","pilot","chef","programmer","artist","driver","farmer","policeman","firefighter","soldier","accountant","journalist","scientist","architect","dentist"]},
+  {e:"🌿",n:"الطبيعة",w:["tree","flower","river","mountain","ocean","forest","sun","moon","star","cloud","rain","snow","wind","storm","desert","island","lake","valley","hill","grass"]},
+  {e:"😊",n:"المشاعر",w:["happy","sad","angry","scared","excited","nervous","proud","jealous","surprised","confused","bored","lonely","grateful","hopeful","anxious","embarrassed","disgusted","curious","ashamed","calm"]},
+  {e:"⚽",n:"الرياضة",w:["football","basketball","swimming","running","tennis","cycling","boxing","yoga","gym","team","volleyball","cricket","golf","baseball","rugby","skiing","surfing","karate","wrestling","archery"]},
+  {e:"✈️",n:"السفر",w:["passport","hotel","airport","ticket","tourist","luggage","visa","flight","beach","museum","map","guide","tour","destination","journey","trip","vacation","adventure","cruise","reservation"]},
+  {e:"🏥",n:"الصحة",w:["doctor","hospital","medicine","headache","fever","healthy","exercise","diet","heart","brain","blood","bone","muscle","pain","surgery","prescription","symptom","treatment","vaccine","vitamin"]},
+  {e:"🎓",n:"التعليم",w:["student","teacher","exam","grade","university","degree","homework","study","lesson","class","subject","curriculum","scholarship","lecture","textbook","library","research","essay","presentation","graduation"]},
+  {e:"💻",n:"التكنولوجيا",w:["computer","internet","phone","email","software","website","application","data","digital","network","password","download","upload","database","program","code","keyboard","screen","battery","charger"]},
+  {e:"🎵",n:"الموسيقى",w:["music","song","guitar","piano","art","painting","singer","concert","rhythm","melody","album","band","orchestra","violin","drums","trumpet","composer","conductor","symphony","opera"]},
+  {e:"👔",n:"الملابس",w:["shirt","pants","dress","shoes","jacket","hat","socks","tie","uniform","fashion","skirt","blouse","sweater","coat","jeans","shorts","gloves","scarf","belt","boots"]},
+  {e:"🏙️",n:"المدينة",w:["street","bridge","building","park","station","bus","train","taxi","parking","traffic","shop","market","bank","police","library","museum","theater","cinema","restaurant","cafe"]},
+  {e:"👨‍👩‍👧",n:"العائلة",w:["mother","father","brother","sister","son","daughter","grandmother","grandfather","uncle","aunt","cousin","husband","wife","nephew","niece","parents","children","baby","twin","relative"]},
+  {e:"📅",n:"الوقت",w:["second","minute","hour","day","week","month","year","century","morning","afternoon","evening","night","yesterday","today","tomorrow","now","soon","early","late","past"]},
+  {e:"🌍",n:"الجغرافيا",w:["continent","country","city","village","north","south","east","west","map","border","capital","population","climate","ocean","sea","river","mountain","desert","island","forest"]},
+  {e:"🎨",n:"الفن",w:["painting","sculpture","drawing","art","museum","gallery","artist","canvas","brush","color","design","creativity","exhibition","portrait","landscape","abstract","modern","classical","digital","photography"]},
+  {e:"🔬",n:"العلوم",w:["science","biology","chemistry","physics","mathematics","experiment","laboratory","theory","hypothesis","research","discovery","element","atom","molecule","energy","gravity","evolution","genetics","astronomy","ecology"]},
+  {e:"📱",n:"وسائل التواصل",w:["social media","facebook","twitter","instagram","youtube","tiktok","snapchat","linkedin","whatsapp","telegram","post","share","like","comment","follow","message","notification","profile","hashtag","trending"]},
+  {e:"🏛️",n:"السياسة",w:["government","president","parliament","democracy","election","vote","law","constitution","policy","minister","senate","congress","republic","freedom","rights","justice","party","campaign","debate","diplomacy"]},
+  {e:"💰",n:"المال والاقتصاد",w:["money","bank","investment","profit","loss","budget","tax","salary","debt","loan","interest","inflation","economy","stock","market","trade","currency","finance","savings","expense"]},
+  {e:"🌾",n:"الزراعة",w:["farm","field","crop","harvest","seed","soil","irrigation","tractor","fertilizer","wheat","corn","rice","cotton","fruit","vegetable","greenhouse","livestock","agricultural","plantation","organic"]},
+  {e:"🚗",n:"المواصلات",w:["car","bus","train","plane","ship","bicycle","motorcycle","truck","taxi","subway","highway","traffic","parking","fuel","engine","wheel","road","bridge","tunnel","transport"]},
+  {e:"🏗️",n:"البناء",w:["building","house","apartment","foundation","wall","roof","floor","ceiling","door","window","stairs","elevator","concrete","brick","steel","glass","architect","engineer","construction","renovation"]},
+  {e:"🌡️",n:"الطقس",w:["hot","cold","warm","cool","sunny","cloudy","rainy","windy","stormy","snowy","foggy","humid","dry","temperature","forecast","climate","season","spring","summer","autumn"]},
+  {e:"🐾",n:"الحيوانات",w:["cat","dog","bird","fish","horse","cow","lion","elephant","tiger","bear","wolf","fox","rabbit","deer","monkey","snake","crocodile","whale","dolphin","eagle"]},
+  {e:"🌺",n:"النباتات",w:["tree","flower","grass","leaf","root","branch","seed","fruit","rose","tulip","sunflower","cactus","palm","oak","pine","bamboo","fern","moss","herb","vine"]},
+  {e:"🍽️",n:"الطبخ",w:["cook","boil","fry","bake","grill","roast","steam","mix","chop","slice","recipe","ingredient","kitchen","oven","pot","pan","knife","spoon","fork","plate"]},
+  {e:"🎮",n:"الألعاب",w:["game","play","team","win","lose","score","player","controller","level","mission","strategy","adventure","racing","shooting","puzzle","simulation","online","tournament","champion","prize"]},
+  {e:"📚",n:"الأدب",w:["book","novel","poetry","story","author","chapter","character","plot","theme","genre","fiction","biography","essay","literature","library","reading","writing","publishing","language","narrative"]},
+  {e:"⚗️",n:"الكيمياء",w:["chemical","reaction","element","compound","molecule","acid","base","solution","experiment","laboratory","oxygen","hydrogen","carbon","nitrogen","periodic","table","catalyst","polymer","organic","inorganic"]},
+  {e:"💊",n:"الطب",w:["medicine","disease","treatment","diagnosis","surgery","doctor","nurse","patient","hospital","pharmacy","drug","vaccine","therapy","symptom","infection","recovery","prevention","prescription","emergency","clinic"]},
+  {e:"🧠",n:"علم النفس",w:["psychology","behavior","emotion","memory","thinking","learning","motivation","personality","stress","anxiety","depression","therapy","cognition","consciousness","perception","attitude","intelligence","creativity","mindfulness","wellbeing"]},
+  {e:"⚖️",n:"القانون",w:["law","court","judge","lawyer","crime","justice","rights","constitution","trial","verdict","prison","police","evidence","witness","contract","regulation","lawsuit","attorney","legislation","punishment"]},
+  {e:"🎭",n:"المسرح والسينما",w:["movie","film","actor","director","scene","script","theater","drama","comedy","action","romance","horror","documentary","animation","award","cinema","performance","stage","audience","production"]},
+  {e:"📰",n:"الإعلام",w:["news","newspaper","media","journalist","report","interview","broadcast","television","radio","magazine","article","editor","headline","press","advertisement","photography","podcast","channel","coverage","social"]},
+  {e:"🏋️",n:"اللياقة البدنية",w:["exercise","fitness","gym","workout","muscle","weight","cardio","yoga","stretching","running","swimming","cycling","training","health","strength","endurance","flexibility","nutrition","sleep","recovery"]},
+  {e:"🌐",n:"الإنترنت",w:["website","search","browser","email","download","upload","stream","cloud","password","security","hacking","virus","firewall","network","server","database","coding","programming","app","digital"]},
+  {e:"🔭",n:"الفضاء",w:["space","planet","star","moon","sun","galaxy","universe","satellite","rocket","astronaut","gravity","orbit","comet","asteroid","telescope","NASA","exploration","atmosphere","solar","cosmic"]},
+  {e:"🎓",n:"الجامعة",w:["university","degree","professor","lecture","seminar","research","thesis","graduate","campus","scholarship","tuition","dormitory","faculty","department","semester","exam","grade","diploma","academic","student"]},
+  {e:"🤝",n:"العمل والأعمال",w:["business","company","employee","employer","salary","meeting","project","client","deadline","presentation","negotiation","contract","startup","investment","profit","marketing","management","leadership","strategy","team"]},
+  {e:"🌏",n:"الثقافات العالمية",w:["culture","tradition","language","religion","festival","music","food","art","history","custom","belief","heritage","identity","diversity","immigration","globalization","international","multicultural","exchange","diplomacy"]},
+  {e:"🔑",n:"أدوات يومية",w:["key","phone","wallet","bag","umbrella","glasses","watch","pen","pencil","notebook","calculator","charger","headphones","camera","remote","scissors","tape","hammer","screwdriver","battery"]},
+  {e:"🧪",n:"الفيزياء",w:["force","energy","motion","gravity","light","sound","heat","electricity","magnetism","wave","particle","quantum","nuclear","radiation","frequency","velocity","acceleration","mass","pressure","temperature"]},
+  {e:"🏖️",n:"الترفيه",w:["vacation","beach","swimming","hiking","camping","picnic","party","concert","festival","cinema","theater","museum","travel","adventure","relaxation","hobby","reading","gaming","cooking","photography"]},
+  {e:"🍎",n:"الفواكه",w:["apple","banana","orange","grape","strawberry","mango","pineapple","watermelon","cherry","peach","pear","lemon","lime","coconut","kiwi","papaya","fig","date","pomegranate","avocado"]},
+  {e:"🥦",n:"الخضروات",w:["tomato","potato","onion","carrot","broccoli","cucumber","lettuce","spinach","pepper","eggplant","zucchini","cauliflower","garlic","mushroom","corn","peas","beans","celery","radish","artichoke"]},
+  {e:"🐟",n:"البحر",w:["fish","whale","dolphin","shark","octopus","crab","lobster","shrimp","coral","reef","wave","ocean","tide","current","submarine","diving","sailor","anchor","coast","island"]},
+  {e:"🌙",n:"الليل",w:["night","moon","star","dark","sleep","dream","silence","shadow","lamp","candle","midnight","twilight","dusk","insomnia","nightmare","rest","quiet","calm","peaceful","mysterious"]},
+  {e:"☀️",n:"النهار",w:["day","sun","light","morning","noon","afternoon","bright","warm","active","energy","work","school","outdoor","sunshine","clear","sky","fresh","awake","busy","productive"]},
+  {e:"❤️",n:"الحب والعلاقات",w:["love","friendship","marriage","romance","care","trust","respect","loyalty","commitment","affection","relationship","partner","couple","date","proposal","anniversary","jealousy","breakup","forgiveness","communication"]},
+  {e:"🧩",n:"الشخصية",w:["personality","character","behavior","attitude","habit","value","belief","strength","weakness","introvert","extrovert","ambitious","creative","organized","patient","honest","loyal","generous","confident","humble"]},
+];
+
+// ══════════════════════════════════════════════════════════
+//  IRREGULAR VERBS (80+)
+// ══════════════════════════════════════════════════════════
+const VERBS = [
+  {i:"be",p:"was/were",pp:"been",ar:"يكون",cat:"essential"},
+  {i:"have",p:"had",pp:"had",ar:"يملك",cat:"essential"},
+  {i:"do",p:"did",pp:"done",ar:"يفعل",cat:"essential"},
+  {i:"say",p:"said",pp:"said",ar:"يقول",cat:"essential"},
+  {i:"go",p:"went",pp:"gone",ar:"يذهب",cat:"essential"},
+  {i:"get",p:"got",pp:"gotten",ar:"يحصل",cat:"essential"},
+  {i:"make",p:"made",pp:"made",ar:"يصنع",cat:"essential"},
+  {i:"know",p:"knew",pp:"known",ar:"يعرف",cat:"essential"},
+  {i:"think",p:"thought",pp:"thought",ar:"يفكر",cat:"essential"},
+  {i:"take",p:"took",pp:"taken",ar:"يأخذ",cat:"essential"},
+  {i:"see",p:"saw",pp:"seen",ar:"يرى",cat:"essential"},
+  {i:"come",p:"came",pp:"come",ar:"يأتي",cat:"essential"},
+  {i:"give",p:"gave",pp:"given",ar:"يعطي",cat:"essential"},
+  {i:"find",p:"found",pp:"found",ar:"يجد",cat:"essential"},
+  {i:"tell",p:"told",pp:"told",ar:"يخبر",cat:"essential"},
+  {i:"eat",p:"ate",pp:"eaten",ar:"يأكل",cat:"essential"},
+  {i:"drink",p:"drank",pp:"drunk",ar:"يشرب",cat:"essential"},
+  {i:"sleep",p:"slept",pp:"slept",ar:"ينام",cat:"essential"},
+  {i:"become",p:"became",pp:"become",ar:"يصبح",cat:"common"},
+  {i:"show",p:"showed",pp:"shown",ar:"يُظهر",cat:"common"},
+  {i:"leave",p:"left",pp:"left",ar:"يغادر",cat:"common"},
+  {i:"feel",p:"felt",pp:"felt",ar:"يشعر",cat:"common"},
+  {i:"put",p:"put",pp:"put",ar:"يضع",cat:"common"},
+  {i:"bring",p:"brought",pp:"brought",ar:"يحضر",cat:"common"},
+  {i:"begin",p:"began",pp:"begun",ar:"يبدأ",cat:"common"},
+  {i:"keep",p:"kept",pp:"kept",ar:"يحتفظ",cat:"common"},
+  {i:"hold",p:"held",pp:"held",ar:"يمسك",cat:"common"},
+  {i:"write",p:"wrote",pp:"written",ar:"يكتب",cat:"common"},
+  {i:"stand",p:"stood",pp:"stood",ar:"يقف",cat:"common"},
+  {i:"hear",p:"heard",pp:"heard",ar:"يسمع",cat:"common"},
+  {i:"let",p:"let",pp:"let",ar:"يسمح",cat:"common"},
+  {i:"mean",p:"meant",pp:"meant",ar:"يعني",cat:"common"},
+  {i:"meet",p:"met",pp:"met",ar:"يلتقي",cat:"common"},
+  {i:"run",p:"ran",pp:"run",ar:"يركض",cat:"common"},
+  {i:"pay",p:"paid",pp:"paid",ar:"يدفع",cat:"common"},
+  {i:"sit",p:"sat",pp:"sat",ar:"يجلس",cat:"common"},
+  {i:"speak",p:"spoke",pp:"spoken",ar:"يتحدث",cat:"common"},
+  {i:"read",p:"read",pp:"read",ar:"يقرأ",cat:"common"},
+  {i:"grow",p:"grew",pp:"grown",ar:"ينمو",cat:"common"},
+  {i:"lose",p:"lost",pp:"lost",ar:"يخسر",cat:"common"},
+  {i:"fall",p:"fell",pp:"fallen",ar:"يسقط",cat:"common"},
+  {i:"send",p:"sent",pp:"sent",ar:"يرسل",cat:"common"},
+  {i:"build",p:"built",pp:"built",ar:"يبني",cat:"common"},
+  {i:"spend",p:"spent",pp:"spent",ar:"ينفق",cat:"common"},
+  {i:"cut",p:"cut",pp:"cut",ar:"يقطع",cat:"common"},
+  {i:"drive",p:"drove",pp:"driven",ar:"يقود",cat:"common"},
+  {i:"break",p:"broke",pp:"broken",ar:"يكسر",cat:"common"},
+  {i:"buy",p:"bought",pp:"bought",ar:"يشتري",cat:"common"},
+  {i:"choose",p:"chose",pp:"chosen",ar:"يختار",cat:"common"},
+  {i:"win",p:"won",pp:"won",ar:"يفوز",cat:"common"},
+  {i:"teach",p:"taught",pp:"taught",ar:"يُعلّم",cat:"common"},
+  {i:"catch",p:"caught",pp:"caught",ar:"يمسك",cat:"common"},
+  {i:"swim",p:"swam",pp:"swum",ar:"يسبح",cat:"common"},
+  {i:"fly",p:"flew",pp:"flown",ar:"يطير",cat:"common"},
+  {i:"draw",p:"drew",pp:"drawn",ar:"يرسم",cat:"common"},
+  {i:"throw",p:"threw",pp:"thrown",ar:"يرمي",cat:"common"},
+  {i:"rise",p:"rose",pp:"risen",ar:"يرتفع",cat:"advanced"},
+  {i:"lie",p:"lay",pp:"lain",ar:"يستلقي",cat:"advanced"},
+  {i:"lead",p:"led",pp:"led",ar:"يقود",cat:"advanced"},
+  {i:"bite",p:"bit",pp:"bitten",ar:"يعض",cat:"advanced"},
+  {i:"blow",p:"blew",pp:"blown",ar:"ينفخ",cat:"advanced"},
+  {i:"burn",p:"burnt",pp:"burnt",ar:"يحرق",cat:"advanced"},
+  {i:"deal",p:"dealt",pp:"dealt",ar:"يتعامل",cat:"advanced"},
+  {i:"fight",p:"fought",pp:"fought",ar:"يقاتل",cat:"advanced"},
+  {i:"freeze",p:"froze",pp:"frozen",ar:"يتجمد",cat:"advanced"},
+  {i:"hide",p:"hid",pp:"hidden",ar:"يخفي",cat:"advanced"},
+  {i:"hit",p:"hit",pp:"hit",ar:"يضرب",cat:"advanced"},
+  {i:"hurt",p:"hurt",pp:"hurt",ar:"يؤلم",cat:"advanced"},
+  {i:"ring",p:"rang",pp:"rung",ar:"يرن",cat:"advanced"},
+  {i:"shake",p:"shook",pp:"shaken",ar:"يهز",cat:"advanced"},
+  {i:"shine",p:"shone",pp:"shone",ar:"يلمع",cat:"advanced"},
+  {i:"shoot",p:"shot",pp:"shot",ar:"يطلق",cat:"advanced"},
+  {i:"sing",p:"sang",pp:"sung",ar:"يغني",cat:"advanced"},
+  {i:"sink",p:"sank",pp:"sunk",ar:"يغرق",cat:"advanced"},
+  {i:"steal",p:"stole",pp:"stolen",ar:"يسرق",cat:"advanced"},
+  {i:"strike",p:"struck",pp:"struck",ar:"يضرب",cat:"advanced"},
+  {i:"sweep",p:"swept",pp:"swept",ar:"يكنس",cat:"advanced"},
+  {i:"tear",p:"tore",pp:"torn",ar:"يمزق",cat:"advanced"},
+  {i:"wake",p:"woke",pp:"woken",ar:"يستيقظ",cat:"advanced"},
+  {i:"wear",p:"wore",pp:"worn",ar:"يرتدي",cat:"advanced"},
+  {i:"weep",p:"wept",pp:"wept",ar:"يبكي",cat:"advanced"},
+];
+
+const GRAMMAR = [
+  {ico:"⏰",t:"Present Simple",ar:"المضارع البسيط",ex:"She works every day."},
+  {ico:"📅",t:"Past Simple",ar:"الماضي البسيط",ex:"He visited London last year."},
+  {ico:"🔮",t:"Future Simple",ar:"المستقبل البسيط",ex:"She will travel tomorrow."},
+  {ico:"✅",t:"Present Perfect",ar:"المضارع التام",ex:"I have finished my work."},
+  {ico:"📝",t:"Past Continuous",ar:"الماضي المستمر",ex:"I was sleeping when he called."},
+  {ico:"🔁",t:"Present Continuous",ar:"المضارع المستمر",ex:"She is studying now."},
+  {ico:"🎯",t:"Passive Voice",ar:"المبني للمجهول",ex:"The book was written by Ali."},
+  {ico:"🔀",t:"Conditionals",ar:"الجمل الشرطية",ex:"If I study, I will pass."},
+  {ico:"❓",t:"Articles a/an/the",ar:"أدوات التعريف",ex:"I saw a dog. The dog was big."},
+  {ico:"🔗",t:"Prepositions",ar:"حروف الجر",ex:"She is at home on Sunday."},
+  {ico:"🔄",t:"Phrasal Verbs",ar:"الأفعال المركبة",ex:"Turn off the light please."},
+  {ico:"🗣️",t:"Reported Speech",ar:"الكلام المنقول",ex:`He said that he was tired.`},
+];
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
+const shuf = (a) => { const r=[...a]; for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];} return r; };
+const lvlBadge = (l) => l==="A1"||l==="A2" ? "bg" : l==="B1"||l==="B2" ? "bb" : "bo";
+
+// ══════════════════════════════════════════════════════════
+//  STYLES
+// ══════════════════════════════════════════════════════════
+const S = `
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Poppins:wght@600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--bg:#060d1a;--card:#0d1b2e;--c2:#0a1628;--bdr:#1a3050;--acc:#3b82f6;--a2:#06b6d4;--a3:#f59e0b;--ok:#10b981;--err:#ef4444;--txt:#e2e8f0;--muted:#64748b;}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.07;}
+.o1{width:260px;height:260px;background:#3b82f6;top:-60px;right:-60px;}
+.o2{width:220px;height:220px;background:#06b6d4;bottom:-50px;left:-50px;}
+.z1{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;overflow:hidden;}
+/* TOP */
+.top{background:rgba(6,13,26,.97);border-bottom:1px solid var(--bdr);padding:9px 13px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.logo{font-family:'Poppins',sans-serif;font-size:14px;font-weight:900;color:var(--acc);}
+.pills{display:flex;gap:5px;}
+.pill{display:flex;align-items:center;gap:3px;border-radius:99px;padding:3px 9px;font-size:11px;font-weight:700;}
+.px{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:var(--acc);}
+.ps{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--a3);}
+/* SCROLL */
+.scrl{flex:1;overflow-y:auto;padding:10px 11px 95px;-webkit-overflow-scrolling:touch;}
+.scrl::-webkit-scrollbar{width:3px;}
+.scrl::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:99px;}
+/* BOTTOM NAV */
+.bnav{flex-shrink:0;background:rgba(6,13,26,.98);border-top:1px solid var(--bdr);display:flex;justify-content:space-around;padding:5px 0 9px;}
+.bni{display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;padding:3px 8px;color:var(--muted);font-size:9px;transition:.2s;min-width:50px;}
+.bni .ico{font-size:21px;line-height:1.2;}
+.bni.on{color:var(--acc);}
+/* SUB NAV */
+.subnav{display:flex;gap:5px;padding:4px 11px;background:rgba(6,13,26,.9);flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.subnav::-webkit-scrollbar{display:none;}
+.snav{padding:4px 12px;border-radius:99px;border:1px solid var(--bdr);cursor:pointer;font-size:10px;color:var(--muted);white-space:nowrap;font-family:'Cairo',sans-serif;}
+.snav.on{background:var(--acc);color:#fff;border-color:var(--acc);}
+/* PAGE */
+.pg{display:none;} .pg.on{display:block;}
+/* CARD */
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;padding:13px;margin-bottom:10px;}
+.card h3{font-size:13px;font-weight:700;margin-bottom:9px;}
+/* STAT GRID */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:.15s;}
+.sc:active{transform:scale(.95);}
+.sn{font-family:'Poppins',sans-serif;font-size:22px;font-weight:900;}
+.sl{font-size:9px;color:var(--muted);margin-top:2px;}
+/* WORD CARD */
+.wcard{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(6,182,212,.08));border:1px solid rgba(59,130,246,.3);border-radius:14px;padding:18px;text-align:center;cursor:pointer;margin-bottom:10px;}
+.wen{font-family:'Poppins',sans-serif;font-size:30px;font-weight:900;color:var(--acc);}
+.wph{font-size:11px;color:var(--a2);direction:ltr;margin:3px 0;}
+.war{font-size:18px;font-weight:700;}
+.wtp{font-size:9px;color:var(--muted);background:rgba(59,130,246,.15);padding:1px 7px;border-radius:99px;display:inline-block;margin-bottom:3px;}
+/* SEARCH */
+.srch{width:100%;background:var(--c2);border:1px solid var(--bdr);border-radius:10px;padding:9px 12px;color:var(--txt);font-family:'Cairo',sans-serif;font-size:13px;outline:none;margin-bottom:9px;}
+.srch:focus{border-color:var(--acc);}
+/* TABS */
+.tabs{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:9px;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:4px 11px;border-radius:99px;border:1px solid var(--bdr);cursor:pointer;font-size:11px;color:var(--muted);white-space:nowrap;transition:.15s;font-family:'Cairo',sans-serif;}
+.tab.on{background:var(--acc);color:#fff;border-color:var(--acc);}
+/* WORD LIST ITEM */
+.wli{display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:1px solid var(--bdr);}
+.wli:last-child{border:none;}
+.wn{color:var(--muted);font-size:9px;min-width:22px;}
+.we{font-family:'Poppins',sans-serif;font-weight:700;color:var(--acc);font-size:12px;min-width:85px;}
+.wp{font-size:9px;color:var(--a2);direction:ltr;flex:1;}
+.wa{font-size:11px;min-width:65px;text-align:right;}
+.spk{background:none;border:1px solid var(--bdr);color:var(--a2);border-radius:6px;padding:2px 6px;cursor:pointer;font-size:12px;}
+/* BADGE */
+.bdg{padding:1px 5px;border-radius:99px;font-size:8px;font-weight:700;}
+.bg{background:rgba(16,185,129,.15);color:var(--ok);}
+.bb{background:rgba(59,130,246,.15);color:var(--acc);}
+.bo{background:rgba(245,158,11,.15);color:var(--a3);}
+/* BTN */
+.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;transition:.15s;}
+.bp{background:var(--acc);color:#fff;}
+.boo{background:transparent;color:var(--txt);border:1px solid var(--bdr);}
+.bs{background:var(--ok);color:#fff;}
+.bd{background:var(--err);color:#fff;}
+.bw{width:100%;}
+/* PBAR */
+.pbar{height:5px;background:var(--bdr);border-radius:99px;overflow:hidden;}
+.pf{height:100%;border-radius:99px;transition:width .4s;}
+/* FLIP */
+.flip{perspective:900px;cursor:pointer;margin-bottom:12px;}
+.fi{transition:transform .5s;transform-style:preserve-3d;position:relative;min-height:170px;}
+.flip.fd .fi{transform:rotateY(180deg);}
+.ff,.fb{position:absolute;inset:0;backface-visibility:hidden;border-radius:14px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:18px;}
+.ff{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(6,182,212,.08));border:1px solid rgba(59,130,246,.3);}
+.fb{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(6,182,212,.08));border:1px solid rgba(16,185,129,.3);transform:rotateY(180deg);}
+/* QUIZ */
+.qopt{padding:10px 13px;border-radius:10px;border:2px solid var(--bdr);cursor:pointer;transition:.15s;margin-bottom:7px;font-size:12px;display:flex;align-items:center;gap:7px;}
+.qopt.correct{border-color:var(--ok);background:rgba(16,185,129,.1);color:var(--ok);}
+.qopt.wrong{border-color:var(--err);background:rgba(239,68,68,.08);color:var(--err);}
+/* CHAT */
+.chatbox{background:rgba(10,22,40,.9);border:1px solid var(--bdr);border-radius:11px;height:300px;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;margin-bottom:7px;}
+.msg{max-width:88%;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.65;}
+.aim{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.25);align-self:flex-start;border-radius:3px 10px 10px 10px;}
+.usm{background:var(--acc);align-self:flex-end;border-radius:10px 3px 10px 10px;}
+.ailbl{font-size:9px;color:var(--a2);font-weight:700;margin-bottom:2px;}
+.cin{width:100%;background:var(--c2);border:1px solid var(--bdr);border-radius:8px;padding:8px 11px;color:var(--txt);font-family:'Cairo',sans-serif;font-size:12px;outline:none;}
+.cin:focus{border-color:var(--acc);}
+/* VERB TABLE */
+.vtbl{width:100%;border-collapse:collapse;font-size:10px;}
+.vtbl th{background:rgba(59,130,246,.15);padding:6px 4px;color:var(--acc);font-size:9px;}
+.vtbl td{padding:6px 4px;border-bottom:1px solid var(--bdr);text-align:center;}
+/* CAT PILL */
+.cpill{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:11px;margin-bottom:7px;cursor:pointer;}
+.cpill.open{border-color:rgba(59,130,246,.5);}
+/* SPEAK TOGGLE */
+.spkt{display:flex;gap:5px;margin-bottom:8px;}
+.spkb{padding:4px 10px;border-radius:7px;border:1px solid var(--bdr);cursor:pointer;font-size:10px;color:var(--muted);font-family:'Cairo',sans-serif;}
+.spkb.on{background:var(--acc);color:#fff;border-color:var(--acc);}
+/* STITLE */
+.stitle{font-size:17px;font-weight:900;margin-bottom:2px;}
+.ssub{font-size:11px;color:var(--muted);margin-bottom:10px;}
+/* ROW */
+.row{display:flex;gap:7px;align-items:center;}
+.rsb{display:flex;justify-content:space-between;align-items:center;}
+/* DOTS */
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+.dt{animation:blink 1.2s infinite;display:inline-block;}
+.dt:nth-child(2){animation-delay:.2s;}
+.dt:nth-child(3){animation-delay:.4s;}
+`;
+
+// ══════════════════════════════════════════════════════════
+//  MAIN APP
+// ══════════════════════════════════════════════════════════
+export default function App() {
+  const [page, setPage] = useState("home");
+  const [xp, setXp] = useState(1240);
+  const addXp = useCallback(n => setXp(p => p + n), []);
+
+  const pages = {
+    home: <HomePage goPage={setPage} />,
+    words: <WordsPage addXp={addXp} />,
+    cats: <CatsPage />,
+    verbs: <VerbsPage />,
+    flashcards: <FlashPage addXp={addXp} />,
+    quiz: <QuizPage addXp={addXp} />,
+    ai: <AIPage />,
+    speak: <SpeakPage />,
+    grammar: <GrammarPage />,
+  };
+
+  const nav = [{id:"home",ico:"🏠",l:"الرئيسية"},{id:"ai",ico:"🤖",l:"المعلم"},{id:"words",ico:"📚",l:"كلمات"},{id:"quiz",ico:"✏️",l:"اختبار"},{id:"cats",ico:"🗂️",l:"أقسام"}];
+  const sub = [{id:"flashcards",l:"🃏 بطاقات"},{id:"verbs",l:"⚡ أفعال شاذة"},{id:"speak",l:"🎙️ نطق"},{id:"grammar",l:"📖 قواعد"}];
+
+  return (
+    <>
+      <style>{S}</style>
+      <div className="orbs"><div className="orb o1"/><div className="orb o2"/></div>
+      <div className="z1">
+        {/* TOP */}
+        <div className="top">
+          <span className="logo">🎓 EnglishMaster</span>
+          <div className="pills">
+            <div className="pill ps">🔥 7</div>
+            <div className="pill px">⚡ {xp.toLocaleString()}</div>
+          </div>
         </div>
-        <div class="shop-card-desc">${desc}</div>
-        <div class="shop-card-footer">
-          <div class="shop-card-phone">📞 ${sh.phone}</div>
-          <div class="shop-card-stars">${stars} ${sh.rating}</div>
+        {/* SUB NAV */}
+        <div className="subnav">
+          {sub.map(s => <div key={s.id} className={`snav ${page===s.id?"on":""}`} onClick={()=>setPage(s.id)}>{s.l}</div>)}
+        </div>
+        {/* SCROLL */}
+        <div className="scrl">{pages[page]||pages.home}</div>
+        {/* BOTTOM NAV */}
+        <div className="bnav">
+          {nav.map(n => (
+            <div key={n.id} className={`bni ${page===n.id?"on":""}`} onClick={()=>setPage(n.id)}>
+              <span className="ico">{n.ico}</span>{n.l}
+            </div>
+          ))}
         </div>
       </div>
-    </div>`;
-  }).join('');
+    </>
+  );
 }
 
-function openShopDetail(id) {
-  const sh = shops.find(s=>s.id===id);
-  if(!sh) return;
-  const lang = state.lang;
-  const name = lang==='en' && sh.nameEn ? sh.nameEn : sh.name;
-  document.getElementById('shopDetailName').textContent = name;
-  const badgeCls = sh.status==='open'?'badge-open':sh.status==='closed'?'badge-closed':'badge-unknown';
-  const statusText = sh.status==='open'?(lang==='en'?'🟢 Open':'🟢 مفتوح'):sh.status==='closed'?(lang==='en'?'🔴 Closed':'🔴 مغلق'):(lang==='en'?'🟡 Unknown':'🟡 غير معروف');
-  const stars = '⭐'.repeat(Math.floor(sh.rating));
-  const productsHtml = sh.products.length > 0 ? `
-    <div style="margin:0 16px 12px;background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;">
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700;">${lang==='en'?'Products & Prices':'المنتجات والأسعار'}</div>
-      ${sh.products.map(p=>`<div class="product-item"><div class="product-name">${p.n}</div><div class="product-price">${p.p} <span class="product-currency">${lang==='en'?'IQD':'د.ع'}</span></div></div>`).join('')}
-    </div>` : '';
-  const desc = lang==='en' && sh.descEn ? sh.descEn : sh.desc;
-  document.getElementById('shopDetailContent').innerHTML = `
-    <div style="height:180px;background:linear-gradient(135deg,var(--surface2),var(--border));display:flex;align-items:center;justify-content:center;font-size:72px;">${sh.icon}</div>
-    <div style="padding:16px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-size:22px;font-weight:800;">${name}</div>
-        <div class="shop-badge ${badgeCls}">${statusText}</div>
+// ══════════════════════════════════════════════════════════
+//  HOME
+// ══════════════════════════════════════════════════════════
+function HomePage({goPage}) {
+  const wotd = W[Math.floor(Date.now()/86400000) % W.length];
+  return (
+    <div>
+      <div className="stitle">أهلاً بك! 👋</div>
+      <div className="ssub">منصتك الشاملة لتعلم الإنجليزية</div>
+      <div className="sg">
+        <div className="sc" onClick={()=>goPage("words")}><div className="sn" style={{color:"var(--acc)"}}>500+</div><div className="sl">📚 كلمة إنجليزية</div></div>
+        <div className="sc" onClick={()=>goPage("cats")}><div className="sn" style={{color:"var(--a2)"}}>52</div><div className="sl">🗂️ قسم من المفردات</div></div>
+        <div className="sc" onClick={()=>goPage("quiz")}><div className="sn" style={{color:"var(--ok)"}}>∞</div><div className="sl">✏️ اختبار تفاعلي</div></div>
+        <div className="sc" onClick={()=>goPage("ai")}><div className="sn" style={{color:"var(--a3)"}}>🤖</div><div className="sl">معلم ذكي بـ AI</div></div>
       </div>
-      <div style="font-size:14px;color:var(--text2);margin-bottom:12px;">${desc}</div>
-      <div style="display:flex;gap:12px;margin-bottom:16px;">
-        <div style="font-size:14px;color:var(--accent5);">${stars} ${sh.rating}</div>
+      <div className="card">
+        <h3>📅 كلمة اليوم</h3>
+        <div className="wcard" onClick={()=>speakEn(wotd.en)}>
+          <div className="wtp">{wotd.t} • {wotd.l}</div>
+          <div className="wen">{wotd.en}</div>
+          <div className="wph">{wotd.ph}</div>
+          <div className="war">{wotd.ar}</div>
+          {wotd.ex && <div style={{fontSize:11,color:"var(--muted)",marginTop:7,fontStyle:"italic",direction:"ltr"}}>"{wotd.ex}"</div>}
+        </div>
+        <div className="row">
+          <button className="btn bp" style={{flex:1}} onClick={()=>speakEn(wotd.en)}>🔊 EN</button>
+          <button className="btn boo" style={{flex:1}} onClick={()=>speakAr(wotd.ar)}>🔊 عربي</button>
+          <button className="btn boo" style={{flex:1}} onClick={()=>speakBoth(wotd.en,wotd.ar)}>🔊 كلاهما</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="showToast('📞 ${lang==='en'?'Calling':'جاري الاتصال'}...','info')" style="margin-bottom:10px;">📞 ${lang==='en'?'Call':'اتصال'}: ${sh.phone}</button>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-        <button class="btn btn-outline" style="padding:12px;font-size:13px;" onclick="reportShop('open')">✅ ${lang==='en'?'Report: Open':'الإبلاغ: مفتوح'}</button>
-        <button class="btn btn-outline" style="padding:12px;font-size:13px;border-color:var(--red);color:var(--red);" onclick="reportShop('closed')">❌ ${lang==='en'?'Report: Closed':'الإبلاغ: مغلق'}</button>
+      <div className="card">
+        <h3>🚀 ابدأ الآن</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:7}}>
+          {[["quiz","✏️ اختبار سريع"],["flashcards","🃏 بطاقات تعليمية"],["ai","🤖 المعلم الذكي"],["speak","🎙️ النطق والمحادثة"],["grammar","📖 قواعد اللغة"]].map(([p,l])=>(
+            <button key={p} className="btn boo bw" onClick={()=>goPage(p)}>{l}</button>
+          ))}
+        </div>
       </div>
     </div>
-    ${productsHtml}
-    <div style="height:16px;"></div>`;
-  goScreen('shop-detail');
+  );
 }
 
-function reportShop(status) {
-  const msg = state.lang==='en' ? `Thanks for reporting! Status updated to: ${status}` : `شكراً على تقريرك! تم تحديث الحالة إلى: ${status==='open'?'مفتوح':'مغلق'}`;
-  showToast(msg,'success');
-}
+// ══════════════════════════════════════════════════════════
+//  WORDS PAGE
+// ══════════════════════════════════════════════════════════
+function WordsPage({addXp}) {
+  const [lvl, setLvl] = useState("all");
+  const [q, setQ] = useState("");
+  const [pg, setPg] = useState(0);
+  const [sm, setSm] = useState("en");
+  const PER = 20;
 
-function filterShop(el, filter) {
-  document.querySelectorAll('.filter-chips .chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  renderShops(filter);
-}
+  const filtered = W.filter(w =>
+    (lvl==="all"||w.l===lvl) &&
+    (q===""||w.en.toLowerCase().includes(q.toLowerCase())||w.ar.includes(q))
+  );
+  useEffect(()=>setPg(0),[lvl,q]);
+  const slice = filtered.slice(pg*PER,(pg+1)*PER);
 
-// ══════════════════════════════════════════
-// SCREEN NAVIGATION
-// ══════════════════════════════════════════
-function goScreen(name) {
-  const current = state.currentScreen;
-  if(current !== 'splash') state.screenStack.push(current);
-  showScreen(name);
-  if(name==='shops') renderShops();
-}
+  const handleClick = (w) => {
+    addXp(1);
+    if(sm==="en") speakEn(w.en);
+    else if(sm==="ar") speakAr(w.ar);
+    else speakBoth(w.en,w.ar);
+  };
 
-function goBack() {
-  const prev = state.screenStack.pop();
-  if(prev) showScreen(prev);
-  else showScreen('home');
-}
-
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  const el = document.getElementById('screen-'+name);
-  if(el) { el.classList.add('active'); state.currentScreen = name; }
-}
-
-// ══════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════
-let selectedRole = 'user';
-
-function selectRole(el, role) {
-  selectedRole = role;
-  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
-  el.classList.add('selected');
-}
-
-function goToOTP() {
-  const phone = document.getElementById('phoneInput').value.trim();
-  if(!phone) { showToast(state.lang==='en'?'Enter phone number':'أدخل رقم الهاتف','error'); return; }
-  showToast(state.lang==='en'?'Code sent!':'تم الإرسال!','success');
-  goScreen('auth-otp');
-}
-
-function otpNext(el, index) {
-  if(el.value.length===1 && index<4) {
-    const otpInputs = document.querySelectorAll('.otp-input');
-    if(otpInputs[index]) otpInputs[index].focus();
-  }
-}
-
-function verifyOTP() {
-  const otpInputs = document.querySelectorAll('.otp-input');
-  const code = Array.from(otpInputs).map(i=>i.value).join('');
-  if(code.length < 4) { showToast(state.lang==='en'?'Enter full code':'أدخل الرمز كاملاً','error'); return; }
-  state.role = selectedRole;
-  showToast(state.lang==='en'?'Welcome! 🎉':'أهلاً وسهلاً! 🎉','success');
-  setTimeout(()=>{ goScreen('home'); }, 600);
-}
-
-function logout() {
-  state.screenStack = [];
-  showToast(state.lang==='en'?'Logged out':'تم تسجيل الخروج','info');
-  goScreen('auth-phone');
-}
-
-// ══════════════════════════════════════════
-// LANGUAGE
-// ══════════════════════════════════════════
-function toggleLanguage() {
-  state.lang = state.lang==='ar' ? 'en' : 'ar';
-  applyLanguage();
-  showToast(state.lang==='en'?'Switched to English 🇬🇧':'تم التبديل للعربية 🇮🇶','info');
-}
-
-function applyLanguage() {
-  const lang = state.lang;
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
-  document.documentElement.setAttribute('data-lang', lang);
-  // update all text nodes
-  Object.keys(T[lang]).forEach(key => {
-    const el = document.getElementById(key);
-    if(el) el.textContent = T[lang][key];
-  });
-  // update placeholders
-  const si = document.getElementById('searchInput');
-  if(si) si.placeholder = T[lang].searchPlaceholder;
-  const nt = document.getElementById('notifText');
-  if(nt) nt.placeholder = T[lang].notifPlaceholder;
-  // re-render shops if visible
-  if(state.currentScreen==='shops') renderShops();
-}
-
-// ══════════════════════════════════════════
-// NOTIFICATIONS
-// ══════════════════════════════════════════
-let notifOn = true;
-function toggleNotifSetting() {
-  notifOn = !notifOn;
-  document.getElementById('notifToggle').classList.toggle('on', notifOn);
-  showToast(notifOn ? (state.lang==='en'?'Notifications on':'الإشعارات مفعّلة') : (state.lang==='en'?'Notifications off':'الإشعارات معطلة'), 'info');
-}
-
-function markAllRead() {
-  document.querySelectorAll('.notif-item.unread').forEach(el=>el.classList.remove('unread'));
-}
-
-function sendOwnerNotif() {
-  const text = document.getElementById('notifText').value.trim();
-  if(!text) { showToast(state.lang==='en'?'Write a message':'اكتب الإشعار أولاً','error'); return; }
-  document.getElementById('notifText').value = '';
-  showToast(state.lang==='en'?'Notification sent to community! 📢':'تم إرسال الإشعار للمجتمع! 📢','success');
-}
-
-// ══════════════════════════════════════════
-// SHOP STATUS (DASHBOARD)
-// ══════════════════════════════════════════
-function changeShopStatus(newStatus) {
-  state.pendingStatusChange = newStatus;
-  document.getElementById('statusModal').classList.add('open');
-}
-
-function confirmStatusChange() {
-  const pass = document.getElementById('statusPassInput').value;
-  if(!pass) { showToast(state.lang==='en'?'Enter password':'أدخل كلمة المرور','error'); return; }
-  const isOpen = state.pendingStatusChange === 'open';
-  document.getElementById('dashStatusDot').style.background = isOpen ? 'var(--green)' : 'var(--red)';
-  document.getElementById('dashStatusDot').style.boxShadow = isOpen ? '0 0 8px var(--green)' : '0 0 8px var(--red)';
-  document.getElementById('dashStatusText').textContent = isOpen ? (state.lang==='en'?'Open Now':'مفتوح الآن') : (state.lang==='en'?'Closed':'مغلق');
-  document.getElementById('statusPassInput').value = '';
-  closeModal('statusModal');
-  showToast(isOpen ? (state.lang==='en'?'Shop is now Open 🟢':'المحل الآن مفتوح 🟢') : (state.lang==='en'?'Shop is now Closed 🔴':'المحل الآن مغلق 🔴'), 'success');
-}
-
-// ══════════════════════════════════════════
-// MODALS
-// ══════════════════════════════════════════
-function openUpgradeModal() { document.getElementById('upgradeModal').classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// close on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay=>{
-  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
-});
-
-// ══════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════
-function showToast(msg, type='info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icons = {success:'✅', error:'❌', info:'ℹ️'};
-  toast.innerHTML = `${icons[type]||''} ${msg}`;
-  container.appendChild(toast);
-  setTimeout(()=>{ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 3100);
-}
-
-// ══════════════════════════════════════════
-// PRODUCTS EDIT
-// ══════════════════════════════════════════
-function editProduct(btn) {
-  const row = btn.closest('.product-item');
-  const priceEl = row.querySelector('.product-price');
-  const current = priceEl.textContent.replace(/[^0-9,]/g,'');
-  const newPrice = prompt(state.lang==='en'?'New price:':'السعر الجديد:', current);
-  if(newPrice && newPrice.trim()) {
-    priceEl.textContent = newPrice;
-    showToast(state.lang==='en'?'Price updated':'تم تحديث السعر','success');
-  }
-}
-
-function showAddProduct() {
-  const name = prompt(state.lang==='en'?'Product name:':'اسم المنتج:');
-  if(!name) return;
-  const price = prompt(state.lang==='en'?'Price:':'السعر:');
-  if(!price) return;
-  const list = document.getElementById('dashProductList');
-  const item = document.createElement('div');
-  item.className = 'product-item';
-  item.innerHTML = `<div><div class="product-name">${name}</div><div class="product-unit">${state.lang==='en'?'unit':'وحدة'}</div></div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div><div class="product-price">${price}</div><div class="product-currency">${state.lang==='en'?'IQD':'دينار'}</div></div>
-      <div class="icon-btn" style="width:32px;height:32px;font-size:14px;" onclick="editProduct(this)">✏️</div>
-    </div>`;
-  list.appendChild(item);
-  showToast(state.lang==='en'?'Product added':'تم إضافة المنتج','success');
-}
-
-// ══════════════════════════════════════════
-// SEARCH
-// ══════════════════════════════════════════
-function liveSearch(val) {
-  if(!val) return;
-  // Simple demo search
-  const results = shops.filter(s=>{
-    const q = val.toLowerCase();
-    return s.name.includes(val) || s.nameEn.toLowerCase().includes(q) || s.desc.includes(val) || s.descEn.toLowerCase().includes(q);
-  });
-  if(results.length>0) {
-    // navigate to shops and filter
-    goScreen('shops');
-    setTimeout(()=>{
-      const list = document.getElementById('shopsList');
-      list.innerHTML = results.map(sh=>{
-        const name = state.lang==='en' && sh.nameEn ? sh.nameEn : sh.name;
-        const desc = state.lang==='en' && sh.descEn ? sh.descEn : sh.desc;
-        const badgeCls = sh.status==='open'?'badge-open':sh.status==='closed'?'badge-closed':'badge-unknown';
-        const statusText = sh.status==='open'?(state.lang==='en'?'🟢 Open':'🟢 مفتوح'):sh.status==='closed'?(state.lang==='en'?'🔴 Closed':'🔴 مغلق'):(state.lang==='en'?'🟡 Unknown':'🟡 غير معروف');
-        return `<div class="shop-card" onclick="openShopDetail(${sh.id})">
-          <div class="shop-card-img" style="font-size:52px;display:flex;align-items:center;justify-content:center;">${sh.icon}</div>
-          <div class="shop-card-body">
-            <div class="shop-card-top"><div class="shop-card-name">${name}</div><div class="shop-badge ${badgeCls}">${statusText}</div></div>
-            <div class="shop-card-desc">${desc}</div>
+  return (
+    <div>
+      <div className="stitle">📚 قاموس الكلمات</div>
+      <div className="ssub">{filtered.length} كلمة</div>
+      <div className="spkt">
+        {[["en","🔊 إنجليزي"],["ar","🔊 عربي"],["both","🔊 كلاهما"]].map(([v,l])=>(
+          <div key={v} className={`spkb ${sm===v?"on":""}`} onClick={()=>setSm(v)}>{l}</div>
+        ))}
+      </div>
+      <input className="srch" placeholder="🔍 ابحث..." value={q} onChange={e=>setQ(e.target.value)}/>
+      <div className="tabs">
+        {["all","A1","A2","B1","B2","C1","C2"].map(l=>(
+          <div key={l} className={`tab ${lvl===l?"on":""}`} onClick={()=>setLvl(l)}>{l==="all"?"الكل":l}</div>
+        ))}
+      </div>
+      <div className="card">
+        {slice.map((w,i)=>(
+          <div key={i} className="wli" onClick={()=>handleClick(w)}>
+            <div className="wn">{pg*PER+i+1}</div>
+            <div className="we">{w.en}</div>
+            <div className="wp">{w.ph}</div>
+            <div className="wa">{w.ar}</div>
+            <span className={`bdg ${lvlBadge(w.l)}`}>{w.l}</span>
+            <button className="spk" onClick={e=>{e.stopPropagation();speakEn(w.en);}}>EN🔊</button>
+            <button className="spk" onClick={e=>{e.stopPropagation();speakAr(w.ar);}}>ع🔊</button>
           </div>
-        </div>`;
-      }).join('');
-    }, 300);
-  }
+        ))}
+        <div className="rsb" style={{marginTop:11}}>
+          <button className="btn boo" disabled={pg===0} onClick={()=>setPg(p=>p-1)} style={{opacity:pg===0?.4:1}}>◀</button>
+          <span style={{fontSize:11,color:"var(--muted)"}}>{pg*PER+1}–{Math.min((pg+1)*PER,filtered.length)} / {filtered.length}</span>
+          <button className="btn bp" disabled={(pg+1)*PER>=filtered.length} onClick={()=>setPg(p=>p+1)} style={{opacity:(pg+1)*PER>=filtered.length?.4:1}}>▶</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// ══════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════
-window.addEventListener('load', ()=>{
-  // After splash, go to auth
-  setTimeout(()=>{
-    state.screenStack = [];
-    showScreen('auth-phone');
-    state.currentScreen = 'auth-phone';
-  }, 2500);
-});
-</script>
-</body>
-</html>
+// ══════════════════════════════════════════════════════════
+//  CATEGORIES  (52 categories)
+// ══════════════════════════════════════════════════════════
+function CatsPage() {
+  const [open, setOpen] = useState(null);
+  const [search, setSearch] = useState("");
+
+  const filtered = CATS.filter(c => search===""||c.n.includes(search)||c.e.includes(search));
+
+  return (
+    <div>
+      <div className="stitle">🗂️ أقسام المفردات</div>
+      <div className="ssub">{CATS.length} قسم - 20 كلمة في كل قسم</div>
+      <input className="srch" placeholder="🔍 ابحث عن قسم..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      {filtered.map((c,i)=>(
+        <div key={i}>
+          <div className={`cpill ${open===i?"open":""}`} onClick={()=>setOpen(open===i?null:i)}>
+            <div className="rsb">
+              <div><span style={{fontSize:20}}>{c.e}</span> <b style={{fontSize:13}}>{c.n}</b></div>
+              <span style={{fontSize:10,color:"var(--acc)"}}>{open===i?"▲":"▼"} {c.w.length} كلمة</span>
+            </div>
+          </div>
+          {open===i && (
+            <div className="card" style={{marginTop:-3,borderRadius:"0 0 11px 11px",borderTop:"none"}}>
+              {c.w.map((word,j)=>{
+                const wd=W.find(x=>x.en.toLowerCase()===word.toLowerCase());
+                return (
+                  <div key={j} className="wli">
+                    <div className="wn">{j+1}</div>
+                    <div className="we">{word}</div>
+                    <div className="wa">{wd?.ar||""}</div>
+                    <button className="spk" onClick={()=>speakEn(word)}>EN🔊</button>
+                    <button className="spk" onClick={()=>speakAr(wd?.ar||word)}>ع🔊</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  VERBS PAGE
+// ══════════════════════════════════════════════════════════
+function VerbsPage() {
+  const [cat,setCat]=useState("all");
+  const [q,setQ]=useState("");
+  const list=VERBS.filter(v=>(cat==="all"||v.cat===cat)&&(q===""||v.i.includes(q)||v.ar.includes(q)));
+  return (
+    <div>
+      <div className="stitle">⚡ الأفعال الشاذة</div>
+      <div className="ssub">{VERBS.length} فعل شاذ مع جميع التصريفات</div>
+      <input className="srch" placeholder="🔍 ابحث..." value={q} onChange={e=>setQ(e.target.value)}/>
+      <div className="tabs">
+        {[["all","الكل"],["essential","أساسية"],["common","شائعة"],["advanced","متقدمة"]].map(([v,l])=>(
+          <div key={v} className={`tab ${cat===v?"on":""}`} onClick={()=>setCat(v)}>{l}</div>
+        ))}
+      </div>
+      <div className="card" style={{overflowX:"auto"}}>
+        <table className="vtbl">
+          <thead><tr><th>#</th><th>المصدر</th><th>الماضي</th><th>P.P</th><th>المعنى</th><th></th></tr></thead>
+          <tbody>
+            {list.map((v,i)=>(
+              <tr key={i}>
+                <td style={{color:"var(--muted)",fontSize:9}}>{i+1}</td>
+                <td style={{direction:"ltr",fontFamily:"'Poppins',sans-serif",fontWeight:700,color:"var(--acc)"}}>{v.i}</td>
+                <td style={{direction:"ltr",color:"var(--a2)"}}>{v.p}</td>
+                <td style={{direction:"ltr",color:"var(--ok)"}}>{v.pp}</td>
+                <td style={{fontSize:10}}>{v.ar}</td>
+                <td><button className="spk" onClick={()=>speakEn(`${v.i}, ${v.p}, ${v.pp}`)}>🔊</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  FLASHCARDS
+// ══════════════════════════════════════════════════════════
+function FlashPage({addXp}) {
+  const [lvl,setLvl]=useState("all");
+  const [idx,setIdx]=useState(0);
+  const [flipped,setFlipped]=useState(false);
+  const [sm,setSm]=useState("both");
+
+  const pool=lvl==="all"?W:W.filter(w=>w.l===lvl);
+  const w=pool[idx%pool.length];
+
+  const next=()=>{setIdx(p=>p+1);setFlipped(false);};
+  const prev=()=>{setIdx(p=>Math.max(0,p-1));setFlipped(false);};
+
+  useEffect(()=>{
+    if(sm==="en") speakEn(w.en);
+    else if(sm==="ar") speakAr(w.ar);
+    else speakBoth(w.en,w.ar);
+  },[idx,lvl]);
+
+  const flip=()=>{
+    setFlipped(f=>!f);
+    if(!flipped) speakAr(w.ar);
+  };
+
+  return (
+    <div>
+      <div className="stitle">🃏 البطاقات التعليمية</div>
+      <div className="rsb" style={{marginBottom:9}}>
+        <span style={{fontSize:11,color:"var(--muted)"}}>بطاقة {idx%pool.length+1} / {pool.length}</span>
+        <div className="tabs" style={{margin:0}}>
+          {["all","A1","A2","B1","C1"].map(l=>(
+            <div key={l} className={`tab ${lvl===l?"on":""}`} onClick={()=>{setLvl(l);setIdx(0);setFlipped(false);}}>{l==="all"?"الكل":l}</div>
+          ))}
+        </div>
+      </div>
+      <div className="spkt">
+        {[["en","🔊 EN تلقائي"],["ar","🔊 عربي تلقائي"],["both","🔊 كلاهما تلقائي"]].map(([v,l])=>(
+          <div key={v} className={`spkb ${sm===v?"on":""}`} onClick={()=>setSm(v)}>{l}</div>
+        ))}
+      </div>
+      <div className={`flip ${flipped?"fd":""}`} onClick={flip}>
+        <div className="fi">
+          <div className="ff">
+            <div className="wtp">{w.t}</div>
+            <div className="wen">{w.en}</div>
+            <div className="wph">{w.ph}</div>
+            <div style={{marginTop:12,fontSize:11,color:"var(--muted)"}}>اضغط لرؤية الترجمة 👆</div>
+          </div>
+          <div className="fb">
+            <div style={{fontSize:28,marginBottom:6}}>✨</div>
+            <div className="war">{w.ar}</div>
+            {w.ex&&<div style={{fontSize:10,color:"var(--muted)",marginTop:7,fontStyle:"italic",direction:"ltr"}}>"{w.ex}"</div>}
+          </div>
+        </div>
+      </div>
+      <div className="row" style={{justifyContent:"center",gap:9,marginBottom:9}}>
+        <button className="btn bd" onClick={()=>{addXp(2);next();}}>😰 صعبة</button>
+        <button className="btn boo" onClick={()=>{addXp(5);next();}}>😐 عادية</button>
+        <button className="btn bs" onClick={()=>{addXp(10);next();}}>😊 سهلة</button>
+      </div>
+      <div className="row" style={{justifyContent:"center",gap:7}}>
+        <button className="btn boo" onClick={prev}>◀</button>
+        <button className="btn bp" onClick={()=>speakEn(w.en)}>🔊 EN</button>
+        <button className="btn boo" onClick={()=>speakAr(w.ar)}>🔊 عربي</button>
+        <button className="btn bp" onClick={next}>▶</button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  QUIZ
+// ══════════════════════════════════════════════════════════
+const GQ=[
+  {q:"She ___ to school every day.",t:"اختر",c:"goes",o:["go","goes","going","went"]},
+  {q:"I ___ my homework yesterday.",t:"اختر",c:"did",o:["do","does","did","doing"]},
+  {q:"They ___ in London for 5 years.",t:"اختر",c:"have lived",o:["live","lived","have lived","are living"]},
+  {q:"The book ___ by Shakespeare.",t:"اختر",c:"was written",o:["writes","wrote","was written","is writing"]},
+  {q:"If I ___ rich, I would travel.",t:"اختر",c:"were",o:["am","was","were","be"]},
+  {q:"She is ___ engineer.",t:"اختر الأداة",c:"an",o:["a","an","the","---"]},
+  {q:"I will see you ___ Monday.",t:"حرف الجر",c:"on",o:["in","on","at","by"]},
+  {q:"Knowledge ___ power.",t:"أكمل",c:"is",o:["is","are","was","be"]},
+  {q:"She has worked here ___ 2018.",t:"أكمل",c:"since",o:["for","since","from","in"]},
+  {q:"___ you speak English?",t:"أكمل",c:"Can",o:["Can","Do","Are","Have"]},
+];
+
+function QuizPage({addXp}) {
+  const [type,setType]=useState("vocab");
+  const [pool,setPool]=useState([]);
+  const [qi,setQi]=useState(0);
+  const [score,setScore]=useState(0);
+  const [wrong,setWrong]=useState(0);
+  const [chosen,setChosen]=useState(null);
+
+  const buildVocab=()=>shuf(W).slice(0,30).map(w=>{
+    const bad=shuf(W.filter(x=>x.ar!==w.ar)).slice(0,3).map(x=>x.ar);
+    return {q:w.en,ph:w.ph,t:"اختر الترجمة الصحيحة",c:w.ar,o:shuf([w.ar,...bad])};
+  });
+
+  useEffect(()=>{
+    setPool(type==="vocab"?buildVocab():shuf([...GQ]));
+    setQi(0);setScore(0);setWrong(0);setChosen(null);
+  },[type]);
+
+  const q=pool[qi%Math.max(pool.length,1)];
+  const total=Math.min(10,pool.length);
+
+  const answer=(opt)=>{
+    if(chosen) return;
+    setChosen(opt);
+    if(opt===q.c){setScore(s=>s+1);addXp(10);speakEn(q.q);}
+    else setWrong(w=>w+1);
+  };
+
+  const next=()=>{
+    if(qi+1>=total){alert(`🎉 انتهى!\n✅ ${score} / ${total}`);setPool(type==="vocab"?buildVocab():shuf([...GQ]));setQi(0);setScore(0);setWrong(0);}
+    else setQi(p=>p+1);
+    setChosen(null);
+  };
+
+  if(!q) return <div style={{padding:20,textAlign:"center",color:"var(--muted)"}}>جاري التحميل...</div>;
+
+  return (
+    <div>
+      <div className="stitle">✏️ الاختبارات</div>
+      <div className="tabs">
+        <div className={`tab ${type==="vocab"?"on":""}`} onClick={()=>setType("vocab")}>مفردات</div>
+        <div className={`tab ${type==="grammar"?"on":""}`} onClick={()=>setType("grammar")}>قواعد</div>
+      </div>
+      <div className="card">
+        <div className="rsb" style={{marginBottom:9}}>
+          <span className="bdg bb">سؤال {qi+1} / {total}</span>
+          <div className="row" style={{fontSize:12}}><span style={{color:"var(--ok)"}}>✅{score}</span><span style={{color:"var(--err)"}}>❌{wrong}</span></div>
+        </div>
+        <div className="pbar" style={{marginBottom:12}}><div className="pf" style={{width:`${(qi/total)*100}%`,background:"var(--acc)"}}/></div>
+        <div style={{fontSize:10,color:"var(--muted)",marginBottom:5}}>{q.t}:</div>
+        <div className="wcard" style={{minHeight:70,padding:12,marginBottom:10}} onClick={()=>speakEn(q.q)}>
+          <div className="wen" style={{fontSize:22}}>{q.q}</div>
+          {q.ph&&<div className="wph">{q.ph}</div>}
+        </div>
+        {q.o.map((opt,i)=>(
+          <div key={i} className={`qopt ${chosen?(opt===q.c?"correct":opt===chosen?"wrong":""):""}`} onClick={()=>answer(opt)}>
+            <span style={{color:"var(--muted)",fontSize:10}}>{String.fromCharCode(65+i)}.</span>{opt}
+          </div>
+        ))}
+        {chosen&&(
+          <>
+            <div style={{padding:9,borderRadius:8,background:chosen===q.c?"rgba(16,185,129,.1)":"rgba(239,68,68,.07)",border:`1px solid ${chosen===q.c?"var(--ok)":"var(--err)"}`,fontSize:12,marginTop:9}}>
+              {chosen===q.c?"✅ أحسنت! +10 XP":"❌ الإجابة: "+q.c}
+            </div>
+            <button className="btn bp bw" style={{marginTop:8}} onClick={next}>التالي ▶</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  AI TEACHER  (WORKS - inside Artifact = no CORS)
+// ══════════════════════════════════════════════════════════
+function AIPage() {
+  const [msgs,setMsgs]=useState([{r:"ai",t:"أهلاً! أنا معلمك الذكي 🎓\n\nاسألني عن:\n• معنى أي كلمة أو جملة 📚\n• قواعد اللغة الإنجليزية 📖\n• الفرق بين كلمتين ⚖️\n• كيفية النطق الصحيح 🔊\n• أمثلة وجمل 💬\n\nما الذي تريد تعلمه؟ 😊"}]);
+  const [inp,setInp]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [tIn,setTIn]=useState("");
+  const [tOut,setTOut]=useState("");
+  const [tBusy,setTBusy]=useState(false);
+  const [tDir,setTDir]=useState("ar2en");
+  const boxRef=useRef(null);
+  const hist=useRef([]);
+
+  useEffect(()=>{if(boxRef.current)boxRef.current.scrollTop=9999;},[msgs,busy]);
+
+  const send=async(text)=>{
+    const m=(text||inp).trim();
+    if(!m||busy) return;
+    setInp("");
+    const newMsgs=[...msgs,{r:"user",t:m}];
+    setMsgs(newMsgs);
+    hist.current=[...hist.current,{role:"user",content:m}];
+    setBusy(true);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",max_tokens:1000,
+          system:"أنت معلم لغة إنجليزية خبير اسمك EnglishMaster AI. اشرح بالعربية مع أمثلة إنجليزية. استخدم emoji. كن مختصراً ومفيداً.",
+          messages:hist.current.slice(-8)
+        })
+      });
+      const data=await res.json();
+      const reply=data.content?.[0]?.text||"لم أتمكن من الإجابة.";
+      hist.current=[...hist.current,{role:"assistant",content:reply}];
+      setMsgs(p=>[...p,{r:"ai",t:reply}]);
+    }catch(e){
+      setMsgs(p=>[...p,{r:"ai",t:"⚠️ خطأ في الاتصال."}]);
+    }
+    setBusy(false);
+  };
+
+  const translate=async()=>{
+    if(!tIn.trim()||tBusy) return;
+    setTBusy(true);setTOut("");
+    try{
+      const prompt=tDir==="ar2en"?`ترجم من العربية للإنجليزية فقط بدون شرح: "${tIn}"`:
+        `Translate to Arabic only no explanation: "${tIn}"`;
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:300,messages:[{role:"user",content:prompt}]})});
+      const data=await res.json();
+      const out=data.content?.[0]?.text||"خطأ";
+      setTOut(out);
+      if(tDir==="ar2en") speakEn(out); else speakAr(out);
+    }catch{setTOut("⚠️ خطأ في الاتصال");}
+    setTBusy(false);
+  };
+
+  const qs=["ما الفرق بين do و make؟","اشرح Present Perfect","كيف أستخدم a, an, the؟","أعطني 10 phrasal verbs","أكثر 5 أخطاء شيوعاً"];
+
+  return (
+    <div>
+      <div className="stitle">🤖 المعلم الذكي</div>
+      <div className="ssub">مشغّل بالذكاء الاصطناعي - اسأل أي سؤال</div>
+      <div className="card">
+        <div className="chatbox" ref={boxRef}>
+          {msgs.map((m,i)=>(
+            <div key={i} className={`msg ${m.r==="ai"?"aim":"usm"}`}>
+              {m.r==="ai"&&<div className="ailbl">🤖 EnglishMaster AI</div>}
+              <div style={{whiteSpace:"pre-wrap"}}>{m.t}</div>
+            </div>
+          ))}
+          {busy&&<div className="msg aim"><div className="ailbl">🤖 EnglishMaster AI</div><span className="dt">•</span><span className="dt">•</span><span className="dt">•</span></div>}
+        </div>
+        <div className="row" style={{marginBottom:8}}>
+          <input className="cin" value={inp} onChange={e=>setInp(e.target.value)} placeholder="اسأل معلمك..." onKeyDown={e=>e.key==="Enter"&&send()}/>
+          <button className="btn bp" onClick={()=>send()} disabled={busy}>➤</button>
+        </div>
+        <div className="tabs" style={{flexWrap:"wrap"}}>
+          {qs.map((q,i)=><div key={i} className="tab" onClick={()=>send(q)}>{q.slice(0,18)}</div>)}
+        </div>
+      </div>
+      <div className="card">
+        <h3>🌍 ترجمة فورية</h3>
+        <div className="tabs">
+          <div className={`tab ${tDir==="ar2en"?"on":""}`} onClick={()=>setTDir("ar2en")}>عربي → إنجليزي</div>
+          <div className={`tab ${tDir==="en2ar"?"on":""}`} onClick={()=>setTDir("en2ar")}>إنجليزي → عربي</div>
+        </div>
+        <input className="srch" style={{marginBottom:7}} value={tIn} onChange={e=>setTIn(e.target.value)} placeholder={tDir==="ar2en"?"اكتب بالعربية...":"Write in English..."} onKeyDown={e=>e.key==="Enter"&&translate()}/>
+        <button className="btn bp bw" onClick={translate} disabled={tBusy}>{tBusy?"⌛ جاري...":"🔄 ترجم الآن"}</button>
+        {tOut&&(
+          <div style={{marginTop:9,padding:10,background:"rgba(59,130,246,.1)",borderRadius:9,fontSize:14,direction:tDir==="ar2en"?"ltr":"rtl",display:"flex",justifyContent:"space-between",alignItems:"center",gap:7}}>
+            <span>{tOut}</span>
+            <button className="spk" onClick={()=>tDir==="ar2en"?speakEn(tOut):speakAr(tOut)}>🔊</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  SPEAKING
+// ══════════════════════════════════════════════════════════
+const DIALOGS=[
+  {t:"👋 التحيات",lines:[{s:"A",en:"Good morning! How are you?",ar:"صباح الخير! كيف حالك؟"},{s:"B",en:"Good morning! I'm fine, thank you.",ar:"صباح النور! أنا بخير، شكراً."},{s:"A",en:"It's nice to see you!",ar:"من الجيد رؤيتك!"},{s:"B",en:"Have a great day!",ar:"يوم رائع!"}]},
+  {t:"🛒 التسوق",lines:[{s:"A",en:"Excuse me, how much is this shirt?",ar:"عفواً، كم سعر هذا القميص؟"},{s:"B",en:"It's twenty dollars.",ar:"عشرون دولاراً."},{s:"A",en:"Can I try it on?",ar:"هل يمكنني تجربته؟"},{s:"B",en:"Of course! The fitting room is over there.",ar:"بالطبع! غرفة القياس هناك."}]},
+  {t:"🍽️ المطعم",lines:[{s:"A",en:"A table for two, please.",ar:"طاولة لاثنين، من فضلك."},{s:"B",en:"Right this way. Here is the menu.",ar:"تفضل. هذه القائمة."},{s:"A",en:"I'll have the pasta and water.",ar:"سآخذ المعكرونة وماء."},{s:"B",en:"Great choice!",ar:"اختيار رائع!"}]},
+  {t:"🗺️ الاتجاهات",lines:[{s:"A",en:"Excuse me, where is the nearest bank?",ar:"عفواً، أين أقرب بنك؟"},{s:"B",en:"Go straight, then turn left.",ar:"اذهب مستقيماً، ثم انعطف يساراً."},{s:"A",en:"How far is it?",ar:"كم تبعد؟"},{s:"B",en:"About five minutes on foot.",ar:"حوالي خمس دقائق سيراً."}]},
+  {t:"💼 المقابلة",lines:[{s:"A",en:"Tell me about yourself.",ar:"أخبرني عن نفسك."},{s:"B",en:"I graduated with a degree in computer science.",ar:"تخرجت في علوم الحاسوب."},{s:"A",en:"What are your strengths?",ar:"ما هي نقاط قوتك؟"},{s:"B",en:"I am hardworking and a good team player.",ar:"أنا مجتهد ولاعب فريق جيد."}]},
+];
+
+function SpeakPage() {
+  const pool=W.filter(w=>w.l==="A1"||w.l==="A2");
+  const [idx,setIdx]=useState(0);
+  const [open,setOpen]=useState(null);
+  const w=pool[idx%pool.length];
+  return (
+    <div>
+      <div className="stitle">🎙️ النطق والمحادثة</div>
+      <div className="card">
+        <h3>🔊 تدرب على النطق</h3>
+        <div className="wcard" onClick={()=>speakEn(w.en)}>
+          <div className="wen">{w.en}</div><div className="wph">{w.ph}</div><div className="war">{w.ar}</div>
+        </div>
+        <div className="row" style={{justifyContent:"center",gap:7}}>
+          <button className="btn boo" onClick={()=>setIdx(p=>p===0?pool.length-1:p-1)}>◀</button>
+          <button className="btn bp" onClick={()=>speakEn(w.en)}>🔊 EN</button>
+          <button className="btn boo" onClick={()=>speakAr(w.ar)}>🔊 عربي</button>
+          <button className="btn bp" onClick={()=>speakBoth(w.en,w.ar)}>🔊 كلاهما</button>
+          <button className="btn boo" onClick={()=>setIdx(p=>(p+1)%pool.length)}>▶</button>
+        </div>
+      </div>
+      <div className="card">
+        <h3>💬 حوارات يومية</h3>
+        {DIALOGS.map((d,i)=>(
+          <div key={i}>
+            <div className={`cpill ${open===i?"open":""}`} onClick={()=>setOpen(open===i?null:i)}>
+              <div className="rsb"><b style={{fontSize:12}}>{d.t}</b><span style={{fontSize:10,color:"var(--acc)"}}>{open===i?"▲":"▼"}</span></div>
+            </div>
+            {open===i&&(
+              <div className="card" style={{marginTop:-3,borderRadius:"0 0 11px 11px",borderTop:"none"}}>
+                {d.lines.map((l,j)=>(
+                  <div key={j} style={{display:"flex",gap:7,marginBottom:9,flexDirection:l.s==="B"?"row-reverse":"row"}}>
+                    <div style={{background:l.s==="A"?"var(--acc)":"var(--c2)",border:"1px solid var(--bdr)",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>{l.s}</div>
+                    <div style={{background:"var(--c2)",border:"1px solid var(--bdr)",borderRadius:9,padding:"7px 9px",maxWidth:"82%"}}>
+                      <div style={{direction:"ltr",fontSize:12,marginBottom:3}}>{l.en} <button className="spk" onClick={()=>speakEn(l.en)}>🔊</button></div>
+                      <div style={{fontSize:11,color:"var(--muted)"}}>{l.ar} <button className="spk" onClick={()=>speakAr(l.ar)}>🔊</button></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+//  GRAMMAR  (AI explanation per rule)
+// ══════════════════════════════════════════════════════════
+function GrammarPage() {
+  const [open,setOpen]=useState(null);
+  const [cache,setCache]=useState({});
+  const [loading,setLoading]=useState(null);
+
+  const toggle=async(i)=>{
+    setOpen(open===i?null:i);
+    if(open!==i&&!cache[i]){
+      setLoading(i);
+      try{
+        const g=GRAMMAR[i];
+        const res=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,
+            messages:[{role:"user",content:`اشرح قاعدة ${g.t} (${g.ar}) بالعربية بشكل مختصر وواضح مع 3 أمثلة تطبيقية. استخدم emoji. اجعل الشرح سهلاً لطالب يتعلم الإنجليزية.`}]})
+        });
+        const data=await res.json();
+        setCache(p=>({...p,[i]:data.content?.[0]?.text||"خطأ"}));
+      }catch{setCache(p=>({...p,[i]:"⚠️ تعذر الاتصال."}));}
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="stitle">📖 قواعد اللغة</div>
+      <div className="ssub">اضغط على أي قاعدة للشرح بالذكاء الاصطناعي 🤖</div>
+      {GRAMMAR.map((g,i)=>(
+        <div key={i}>
+          <div className={`cpill ${open===i?"open":""}`} onClick={()=>toggle(i)}>
+            <div className="rsb">
+              <div><span style={{fontSize:20}}>{g.ico}</span> <b style={{fontFamily:"'Poppins',sans-serif",color:"var(--acc)",fontSize:13}}>{g.t}</b> <span style={{fontSize:10,color:"var(--muted)"}}>{g.ar}</span></div>
+              <span style={{fontSize:10,color:"var(--acc)"}}>{open===i?"▲":"🤖 شرح"}</span>
+            </div>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3,direction:"ltr",fontStyle:"italic"}}>"{g.ex}"</div>
+          </div>
+          {open===i&&(
+            <div className="card" style={{marginTop:-3,borderRadius:"0 0 11px 11px",borderTop:"none"}}>
+              {loading===i?<div style={{textAlign:"center",padding:14,color:"var(--muted)"}}>
+                <span className="dt">•</span><span className="dt">•</span><span className="dt">•</span> جاري الشرح...
+              </div>:
+              <div style={{fontSize:12,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{cache[i]}</div>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
